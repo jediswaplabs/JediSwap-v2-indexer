@@ -13,7 +13,14 @@ The repository stores three services:
 ### Indexer
 
 1. Adjust environment variables in `indexer/env-goerli` file
-2. Run the indexer
+2. Create an account in [Apibara](https://app.apibara.com/auth/register)
+3. Set apibara auth token as env variable
+
+```
+export AUTH_TOKEN=<your_apibara_key>
+```
+
+4. Run the indexer
 
 ```
 cd indexer

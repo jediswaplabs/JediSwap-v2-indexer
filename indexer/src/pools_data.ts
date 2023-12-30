@@ -155,7 +155,6 @@ import {
           const tickUpper = event.data[4];
           const amount0 = Number(event.data[6]);
           const amount1 = Number(event.data[7]);
-          console.log(event.data)
           return {
             event: EVENTS.COLLECT,
             poolAddress,
