@@ -29,38 +29,48 @@ docker compose up
 
 ### Data transformer
 
-1. Set up env variables:
+1. Create .env file and set variables:
 
 ```
-export MONGO_URL=
-export MONGO_DB=
-export NETWORK=
+cd server
+vi .env
+```
+```
+MONGO_URL=
+MONGO_DB=
+NETWORK=
+RPC_URL=
 ```
 
 Note:
 - `MONGO_DB` should have the same value as `DB_NAME` in the indexer
 - `testnet` or `mainnet` are allowed values for the `NETWORK` env variables
 
-2. Run the commnad to create the `tokens` collection
+2. Run the commnad to set up collections (tokens, factory, pools) in DB
 
 ```
-cd server
-poetry run init_db
+poetry run server init
 ```
 
 3. Run the commnad to processed the indexer data
 
 ```
-poetry run transform
+poetry run server process
 ```
 
 ### Server
 
-1. Set up env variables:
+1. Create .env file and set variables:
 
 ```
-export MONGO_URL=
-export MONGO_DB=
+cd server
+vi .env
+```
+```
+MONGO_URL=
+MONGO_DB=
+NETWORK=
+RPC_URL=
 ```
 
 Note:
@@ -69,6 +79,5 @@ Note:
 2. Start the server
 
 ```
-cd server
-poetry run server
+poetry run server graphql
 ```

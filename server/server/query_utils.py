@@ -1,17 +1,6 @@
-from decimal import Decimal
-
 from pymongo.database import Database
 
-from const import Collection
-
-
-def to_decimal(amount: int, decimals: int) -> Decimal:
-    num = Decimal(10) ** Decimal(decimals)
-    return Decimal(amount) / num
-
-
-def convert_bigint_field(value: str) -> int:
-    return int(value, 16)
+from server.const import Collection
 
 
 def filter_by_the_latest_value(query: dict):

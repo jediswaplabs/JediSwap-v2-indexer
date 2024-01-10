@@ -1,4 +1,5 @@
 from typing import Optional, TypeVar, Generic
+
 from pymongo import ASCENDING, DESCENDING
 from pymongo.cursor import CursorType
 

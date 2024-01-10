@@ -1,15 +1,14 @@
 import asyncio
-import logging
-import os
-import sys
 
 import aiohttp_cors
 import strawberry
+
 from aiohttp import web
 from pymongo import MongoClient
+from pymongo.database import Database
 from strawberry.aiohttp.views import GraphQLView
 
-from server.query import Query
+from server.graphql.query import Query
 
 
 class IndexerGraphQLView(GraphQLView):
@@ -47,19 +46,12 @@ async def run_graphql_server(mongo_url, mongo_database):
     site = web.TCPSite(runner, '0.0.0.0', '8000')
     await site.start()
 
-    logging.info(f'GraphQL server started on port 8000')
+    print(f'GraphQL server started on port 8000')
 
     while True:
         await asyncio.sleep(5_000)
 
 
-def run():
-    logging.info('Starting server')
-    mongo_url = os.environ.get('MONGO_URL', None)
-    if mongo_url is None:
-        sys.exit('MONGO_URL not set')
-    mongo_database = os.environ.get('MONGO_DB', None)
-    if mongo_database is None:
-        sys.exit('MONGO_DB not set')
-
+def run(mongo_url: str, mongo_database: Database):
+    print('Starting server')
     asyncio.run(run_graphql_server(mongo_url, mongo_database))

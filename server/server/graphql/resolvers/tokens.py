@@ -6,8 +6,8 @@ import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.resolvers.helpers import add_order_by_constraint
-from const import Collection
+from server.graphql.resolvers.helpers import add_order_by_constraint
+from server.const import Collection
 
 
 @strawberry.type
@@ -19,6 +19,8 @@ class Token:
     decimals: int
 
     totalValueLocked: Decimal
+    totalValueLockedUSD: Decimal
+    derivedETH: Decimal
 
     @classmethod
     def from_mongo(cls, data):
@@ -28,6 +30,8 @@ class Token:
             symbol=data['symbol'],
             decimals=data['decimals'],
             totalValueLocked=data['totalValueLocked'].to_decimal(),
+            totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
+            derivedETH=data['derivedETH'].to_decimal(),
         )
 
 
@@ -42,7 +46,6 @@ async def get_tokens(
     orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForToken] = None
 ) -> List[Token]:
     db: Database = info.context['db']
-
     query = {}
 
     if where is not None:
