@@ -4,9 +4,10 @@ import sys
 
 from dotenv import load_dotenv
 
+from server.graphql.main import run as graphql_run
 from server.transform.init_db import run as init_run
 from server.transform.process_events import run as process_run
-from server.graphql.main import run as graphql_run
+from server.transform.process_positions import run as positions_run
 
 
 load_dotenv()
@@ -14,7 +15,8 @@ load_dotenv()
 
 def run():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['init', 'process', 'graphql'], help='Choose action: init or process or graphql')
+    parser.add_argument('action', choices=['init', 'process', 'graphql', 'positions'], 
+                        help='Choose action: init or process or graphql or positions')
 
     args = parser.parse_args()
 
@@ -36,3 +38,5 @@ def run():
         process_run(mongo_url, mongo_database, rpc_url)
     elif args.action == 'graphql':
         graphql_run(mongo_url, mongo_database)
+    elif args.action == 'positions':
+        positions_run(mongo_url, mongo_database, rpc_url)
