@@ -37,28 +37,6 @@ import {
         includeTransaction: false,
         includeReceipt: false,
       },
-      // second pool contract
-      {
-        fromAddress: "0x066178e091eb8e6d38edfec26f0d333ebf43b4bf11ad45ce53890fd257b3c14c",
-        keys: [SELECTOR_KEYS.MINT],
-        includeTransaction: false,
-        includeReceipt: false,
-      }, {
-        fromAddress: "0x066178e091eb8e6d38edfec26f0d333ebf43b4bf11ad45ce53890fd257b3c14c",
-        keys: [SELECTOR_KEYS.BURN],
-        includeTransaction: false,
-        includeReceipt: false,
-      }, {
-        fromAddress: "0x066178e091eb8e6d38edfec26f0d333ebf43b4bf11ad45ce53890fd257b3c14c",
-        keys: [SELECTOR_KEYS.SWAP],
-        includeTransaction: false,
-        includeReceipt: false,
-      }, {
-        fromAddress: "0x066178e091eb8e6d38edfec26f0d333ebf43b4bf11ad45ce53890fd257b3c14c",
-        keys: [SELECTOR_KEYS.COLLECT],
-        includeTransaction: false,
-        includeReceipt: false,
-      },
     ],
   };
   
@@ -124,29 +102,29 @@ import {
             block: header?.blockNumber,
           };
         };
-        // case SELECTOR_KEYS.SWAP: {
-        //   // TODO: handle SWAP event
-        //   const poolAddress = event.fromAddress;
-        //   const owner = event.data[0];
-        //   const tickLower = event.data[1];
-        //   const tickUpper = event.data[3];
-        //   const amount = Number(event.data[5]);
-        //   const amount0 = Number(event.data[6]);
-        //   const amount1 = Number(event.data[8]);
-        //   console.log(event.data)
-        //   return {
-        //     event: EVENTS.SWAP,
-        //     poolAddress,
-        //     owner,
-        //     tickLower,
-        //     tickUpper,
-        //     amount,
-        //     amount0,
-        //     amount1,
-        //     timestamp: header?.timestamp,
-        //     block: header?.blockNumber,
-        //   };
-        // };
+        case SELECTOR_KEYS.SWAP: {
+          const poolAddress = event.fromAddress;
+          const sender = event.data[0];
+          const recipient = event.data[1];
+          const amount0 = Number(event.data[2]);
+          const amount1 = Number(event.data[5]);
+          const sqrtPriceX96 = Number(event.data[8]);
+          const liquidity = Number(event.data[10])
+          const tick = event.data[11];
+          return {
+            event: EVENTS.SWAP,
+            poolAddress,
+            sender,
+            recipient,
+            amount0,
+            amount1,
+            sqrtPriceX96,
+            liquidity,
+            tick,
+            timestamp: header?.timestamp,
+            block: header?.blockNumber,
+          };
+        };
         case SELECTOR_KEYS.COLLECT: {
           const poolAddress = event.fromAddress;
           const owner = event.data[0];
