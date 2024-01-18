@@ -78,7 +78,7 @@ import {
             amount0,
             amount1,
             timestamp: header?.timestamp,
-            block: header?.blockNumber,
+            block: Number(header?.blockNumber),
           };
         };
         case SELECTOR_KEYS.BURN: {
@@ -99,7 +99,7 @@ import {
             amount0,
             amount1,
             timestamp: header?.timestamp,
-            block: header?.blockNumber,
+            block: Number(header?.blockNumber),
           };
         };
         case SELECTOR_KEYS.SWAP: {
@@ -122,7 +122,7 @@ import {
             liquidity,
             tick,
             timestamp: header?.timestamp,
-            block: header?.blockNumber,
+            block: Number(header?.blockNumber),
           };
         };
         case SELECTOR_KEYS.COLLECT: {
@@ -143,7 +143,7 @@ import {
             amount0,
             amount1,
             timestamp: header?.timestamp,
-            block: header?.blockNumber,
+            block: Number(header?.blockNumber),
           };
         };
         default:

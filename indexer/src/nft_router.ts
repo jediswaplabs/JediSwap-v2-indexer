@@ -70,7 +70,7 @@ import {
                 positionAddress: event.fromAddress,
                 ownerAddress,
                 timestamp: header?.timestamp,
-                block: header?.blockNumber,
+                block: Number(header?.blockNumber),
               },
             },
           };
@@ -88,7 +88,7 @@ import {
                 positionId,
                 positionAddress: event.fromAddress,
                 timestamp: header?.timestamp,
-                block: header?.blockNumber,
+                block: Number(header?.blockNumber),
               },
               "$inc": {
                 depositedToken0: amount0,
@@ -111,7 +111,7 @@ import {
                 positionId,
                 positionAddress: event.fromAddress,
                 timestamp: header?.timestamp,
-                block: header?.blockNumber,
+                block: Number(header?.blockNumber),
               },
               "$inc": {
                 withdrawnToken0: amount0,
@@ -135,7 +135,7 @@ import {
                 positionAddress: event.fromAddress,
                 ownerAddress,
                 timestamp: header?.timestamp,
-                block: header?.blockNumber,
+                block: Number(header?.blockNumber),
               },
               "$inc": {
                 collectedFeesToken0: amount0_collect,
