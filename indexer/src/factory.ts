@@ -35,6 +35,7 @@ export const config = {
     database: DB_NAME,
     connectionString: MONGODB_CONNECTION_STRING,
     collectionName: COLLECTION_NAMES.POOLS,
+    entityMode: true,
   },
 };
   
@@ -43,14 +44,20 @@ export default function transform({ header, events }: Block) {
     const key = event.keys[0];
     switch (key) {
       case SELECTOR_KEYS.POOL_CREATED: {
+        const poolAddress = event.data[4]
         return {
-          token0: event.data[0],
-          token1: event.data[1],
-          fee: Number(event.data[2]),
-          tickSpacing: Number(event.data[3]),
-          poolAddress: event.data[4],
-          timestamp: header?.timestamp,
-          block: header?.blockNumber,
+          entity: { poolAddress },
+          update: {
+            "$set": {
+              token0: event.data[0],
+              token1: event.data[1],
+              fee: Number(event.data[2]),
+              tickSpacing: Number(event.data[3]),
+              poolAddress: poolAddress,
+              timestamp: header?.timestamp,
+              block: Number(header?.blockNumber),
+            },
+          },
         };
       };
       default:

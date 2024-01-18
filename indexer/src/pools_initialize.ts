@@ -54,7 +54,7 @@ import {
                 sqrtPriceX96,
                 tick,
                 timestamp: header?.timestamp,
-                block: header?.blockNumber,
+                block: Number(header?.blockNumber),
               },
             },
           };
