@@ -54,7 +54,7 @@ export default function transform({ header, events }: Block) {
               fee: Number(event.data[2]),
               tickSpacing: Number(event.data[3]),
               poolAddress: poolAddress,
-              timestamp: header?.timestamp,
+              timestamp: Date.parse(header?.timestamp),
               block: Number(header?.blockNumber),
             },
           },

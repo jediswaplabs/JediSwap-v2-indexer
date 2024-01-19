@@ -62,8 +62,8 @@ import {
           const poolAddress = event.fromAddress;
           const sender = event.data[0];
           const owner = event.data[1];
-          const tickLower = event.data[2];
-          const tickUpper = event.data[4];
+          const tickLower = Number(event.data[2]);
+          const tickUpper = Number(event.data[4]);
           const amount = Number(event.data[6]);
           const amount0 = Number(event.data[7]);
           const amount1 = Number(event.data[9]);
@@ -77,15 +77,15 @@ import {
             amount,
             amount0,
             amount1,
-            timestamp: header?.timestamp,
+            timestamp: Date.parse(header?.timestamp),
             block: Number(header?.blockNumber),
           };
         };
         case SELECTOR_KEYS.BURN: {
           const poolAddress = event.fromAddress;
           const owner = event.data[0];
-          const tickLower = event.data[1];
-          const tickUpper = event.data[3];
+          const tickLower = Number(event.data[1]);
+          const tickUpper = Number(event.data[3]);
           const amount = Number(event.data[5]);
           const amount0 = Number(event.data[6]);
           const amount1 = Number(event.data[8]);
@@ -98,7 +98,7 @@ import {
             amount,
             amount0,
             amount1,
-            timestamp: header?.timestamp,
+            timestamp: Date.parse(header?.timestamp),
             block: Number(header?.blockNumber),
           };
         };
@@ -110,7 +110,7 @@ import {
           const amount1 = Number(event.data[5]);
           const sqrtPriceX96 = Number(event.data[8]);
           const liquidity = Number(event.data[10])
-          const tick = event.data[11];
+          const tick = Number(event.data[11]);
           return {
             event: EVENTS.SWAP,
             poolAddress,
@@ -121,7 +121,7 @@ import {
             sqrtPriceX96,
             liquidity,
             tick,
-            timestamp: header?.timestamp,
+            timestamp: Date.parse(header?.timestamp),
             block: Number(header?.blockNumber),
           };
         };
@@ -129,8 +129,8 @@ import {
           const poolAddress = event.fromAddress;
           const owner = event.data[0];
           const recipient = event.data[1];
-          const tickLower = event.data[2];
-          const tickUpper = event.data[4];
+          const tickLower = Number(event.data[2]);
+          const tickUpper = Number(event.data[4]);
           const amount0 = Number(event.data[6]);
           const amount1 = Number(event.data[7]);
           return {
@@ -142,7 +142,7 @@ import {
             tickUpper,
             amount0,
             amount1,
-            timestamp: header?.timestamp,
+            timestamp: Date.parse(header?.timestamp),
             block: Number(header?.blockNumber),
           };
         };
