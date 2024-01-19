@@ -1,0 +1,233 @@
+from bson import Decimal128
+from pymongo.database import Database
+
+from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
+from server.pricing import EthPrice
+
+from pymongo import MongoClient, UpdateOne
+
+
+def get_day_id(timestamp: str) -> tuple[int, int]:
+    day_id = int(timestamp) // 86400
+    day_start_timestamp = day_id * 86400
+    return day_id, day_start_timestamp
+
+
+def get_hour_id(timestamp: str) -> tuple[int, int]:
+    hour_id = int(timestamp) // 3600
+    hour_start_timestamp = hour_id * 3600
+    return hour_id, hour_start_timestamp
+
+
+def update_factory_day_data(db: Database, factory_record: dict, timestamp: str):
+    day_id, day_start_timestamp = get_day_id(timestamp)
+
+    factory_day_data_record = db[Collection.FACTORIES_DAY_DATA].find_one({'dayId': day_id})
+    if not factory_day_data_record:
+        factory_day_data_record = {
+            'dayId': day_id,
+            'date': day_start_timestamp,
+            'volumeETH': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'volumeUSDUntracked': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+        }
+    factory_day_data_record['tvlUSD'] = factory_record['totalValueLockedUSD']
+    factory_day_data_record['txCount'] = factory_record['txCount']
+
+    update_request = UpdateOne({
+        'dayId': day_id
+        }, {
+            '$set': factory_day_data_record
+        }, upsert=True)
+    db[Collection.FACTORIES_DAY_DATA].bulk_write([update_request])
+
+
+def update_pool_day_data(db: Database, pool_record: dict, timestamp: str):
+    day_id, day_start_timestamp = get_day_id(timestamp)
+
+    pool_day_data_record = db[Collection.POOLS_DAY_DATA].find_one({
+        'poolAddress': pool_record['poolAddress'],
+        'dayId': day_id,
+    })
+    if not pool_day_data_record:
+        pool_day_data_record = {
+            'dayId': day_id,
+            'date': day_start_timestamp,
+            'poolAddress': pool_record['poolAddress'],
+            'volumeToken0': ZERO_DECIMAL128,
+            'volumeToken1': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+            'txCount': ZERO_DECIMAL128,
+            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
+            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
+            'open': pool_record['token0Price'],
+            'high': pool_record['token0Price'],
+            'low': pool_record['token0Price'],
+            'close': pool_record['token0Price'],
+        }
+
+    if pool_record['token0Price'] > pool_day_data_record['high']:
+        pool_day_data_record['high'] = pool_record['token0Price']
+
+    if pool_record['token0Price'] < pool_day_data_record['low']:
+        pool_day_data_record['low'] = pool_record['token0Price']
+
+    pool_day_data_record['liquidity'] = pool_record['liquidity'],
+    pool_day_data_record['sqrtPrice'] = pool_record['sqrtPrice'],
+    pool_day_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128'],
+    pool_day_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128'],
+    pool_day_data_record['token0Price'] = pool_record['token0Price'],
+    pool_day_data_record['token1Price'] = pool_record['token1Price'],
+    pool_day_data_record['tick'] = pool_record['tick'],
+    pool_day_data_record['tvlUSD'] = pool_record['totalValueLockedUSD'],
+
+    update_request = UpdateOne({
+        'poolAddress': pool_record['poolAddress'],
+        'dayId': day_id,
+        }, {
+            '$set': pool_day_data_record,
+            '$inc': {
+                'txCount': 1
+            }
+        }, upsert=True)
+    db[Collection.POOLS_DAY_DATA].bulk_write([update_request])
+  
+
+def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str):
+    hour_id, hour_start_timestamp = get_hour_id(timestamp)
+
+    pool_hour_data_record = db[Collection.POOLS_HOUR_DATA].find_one({
+        'poolAddress': pool_record['poolAddress'],
+        'hourId': hour_id,
+    })
+    if not pool_hour_data_record:
+        pool_hour_data_record = {
+            'hourId': hour_id,
+            'periodStartUnix ': hour_start_timestamp,
+            'poolAddress': pool_record['poolAddress'],
+            'volumeToken0': ZERO_DECIMAL128,
+            'volumeToken1': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+            'txCount': ZERO_DECIMAL128,
+            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
+            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
+            'open': pool_record['token0Price'],
+            'high': pool_record['token0Price'],
+            'low': pool_record['token0Price'],
+            'close': pool_record['token0Price'],
+        }
+
+    if pool_record['token0Price'] > pool_hour_data_record['high']:
+        pool_hour_data_record['high'] = pool_record['token0Price']
+
+    if pool_record['token0Price'] < pool_hour_data_record['low']:
+        pool_hour_data_record['low'] = pool_record['token0Price']
+
+    pool_hour_data_record['liquidity'] = pool_record['liquidity'],
+    pool_hour_data_record['sqrtPrice'] = pool_record['sqrtPrice'],
+    pool_hour_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128'],
+    pool_hour_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128'],
+    pool_hour_data_record['token0Price'] = pool_record['token0Price'],
+    pool_hour_data_record['token1Price'] = pool_record['token1Price'],
+    pool_hour_data_record['tick'] = pool_record['tick'],
+    pool_hour_data_record['tvlUSD'] = pool_record['totalValueLockedUSD'],
+
+    update_request = UpdateOne({
+        'poolAddress': pool_record['poolAddress'],
+        'hourId': hour_id,
+        }, {
+            '$set': pool_hour_data_record,
+            '$inc': {
+                'txCount': 1
+            }
+        }, upsert=True)
+    db[Collection.POOLS_HOUR_DATA].bulk_write([update_request])
+
+
+def update_token_day_data(db: Database, token_record: dict, timestamp: str):
+    day_id, day_start_timestamp = get_day_id(timestamp)
+    token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
+
+    token_day_data_record = db[Collection.TOKENS_DAY_DATA].find_one({
+        'tokenAddress': token_record['tokenAddress'],
+        'dayId': day_id,
+    })
+    if not token_day_data_record:
+        token_day_data_record = {
+            'dayId': day_id,
+            'date': day_start_timestamp,
+            'tokenAddress': token_record['tokenAddress'],
+            'volume': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+            'untrackedVolumeUSD': ZERO_DECIMAL128,
+            'open': Decimal128(token_price),
+            'high': Decimal128(token_price),
+            'low': Decimal128(token_price),
+            'close': Decimal128(token_price),
+        }
+
+    if token_price > token_day_data_record['high'].to_decimal():
+        token_day_data_record['high'] = Decimal128(token_price)
+
+    if token_price < token_day_data_record['low'].to_decimal():
+        token_day_data_record['low'] = Decimal128(token_price)
+
+    token_day_data_record['close'] = Decimal128(token_price)
+    token_day_data_record['priceUSD'] = Decimal128(token_price)
+    token_day_data_record['totalValueLocked'] = token_record['totalValueLocked']
+    token_day_data_record['totalValueLockedUSD'] = token_record['totalValueLockedUSD']
+
+    update_request = UpdateOne({
+        'tokenAddress': token_record['tokenAddress'],
+        'dayId': day_id,
+        }, {
+            '$set': token_day_data_record
+        }, upsert=True)
+    db[Collection.TOKENS_DAY_DATA].bulk_write([update_request])
+
+
+def update_token_hour_data(db: Database, token_record: dict, timestamp: str):
+    hour_id, hour_start_timestamp = get_hour_id(timestamp)
+    token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
+
+    token_hour_data_record = db[Collection.TOKENS_HOUR_DATA].find_one({
+        'tokenAddress': token_record['tokenAddress'],
+        'hourId': hour_id,
+    })
+    if not token_hour_data_record:
+        token_hour_data_record = {
+            'hourId': hour_id,
+            'periodStartUnix ': hour_start_timestamp,
+            'tokenAddress': token_record['tokenAddress'],
+            'volume': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+            'untrackedVolumeUSD': ZERO_DECIMAL128,
+            'open': Decimal128(token_price),
+            'high': Decimal128(token_price),
+            'low': Decimal128(token_price),
+            'close': Decimal128(token_price),
+        }
+
+    if token_price > token_hour_data_record['high'].to_decimal():
+        token_hour_data_record['high'] = Decimal128(token_price)
+
+    if token_price < token_hour_data_record['low'].to_decimal():
+        token_hour_data_record['low'] = Decimal128(token_price)
+
+    token_hour_data_record['close'] = Decimal128(token_price)
+    token_hour_data_record['priceUSD'] = Decimal128(token_price)
+    token_hour_data_record['totalValueLocked'] = token_record['totalValueLocked']
+    token_hour_data_record['totalValueLockedUSD'] = token_record['totalValueLockedUSD']
+
+    update_request = UpdateOne({
+        'tokenAddress': token_record['tokenAddress'],
+        'hourId': hour_id,
+        }, {
+            '$set': token_hour_data_record
+        }, upsert=True)
+    db[Collection.TOKENS_HOUR_DATA].bulk_write([update_request])

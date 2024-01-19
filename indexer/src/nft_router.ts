@@ -69,7 +69,7 @@ import {
                 positionId,
                 positionAddress: event.fromAddress,
                 ownerAddress,
-                timestamp: header?.timestamp,
+                timestamp: Date.parse(header?.timestamp),
                 block: Number(header?.blockNumber),
               },
             },
@@ -87,7 +87,7 @@ import {
               "$set": {
                 positionId,
                 positionAddress: event.fromAddress,
-                timestamp: header?.timestamp,
+                timestamp: Date.parse(header?.timestamp),
                 block: Number(header?.blockNumber),
               },
               "$inc": {
@@ -110,7 +110,7 @@ import {
               "$set": {
                 positionId,
                 positionAddress: event.fromAddress,
-                timestamp: header?.timestamp,
+                timestamp: Date.parse(header?.timestamp),
                 block: Number(header?.blockNumber),
               },
               "$inc": {
@@ -134,7 +134,7 @@ import {
                 positionId,
                 positionAddress: event.fromAddress,
                 ownerAddress,
-                timestamp: header?.timestamp,
+                timestamp: Date.parse(header?.timestamp),
                 block: Number(header?.blockNumber),
               },
               "$inc": {

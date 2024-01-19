@@ -18,7 +18,7 @@ class TokenData:
 
     def to_dict(self) -> dict:
         return {
-            'address': self.address,
+            'tokenAddress': self.address,
             'symbol': self.symbol,
             'name': self.name,
             'decimals': self.decimals,
@@ -61,7 +61,7 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
         # add tokens
         tokens_to_add = []
         for token in TOKENS_MAPPING:
-            existing_record = tokens_collection.find_one({'address': token['address']})
+            existing_record = tokens_collection.find_one({'tokenAddress': token['tokenAddress']})
             if existing_record is None:
                 tokens_to_add.append(token)
                 print(f'Token will be inserted {token["name"]}')
@@ -94,8 +94,8 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
             }}))
 
             # update tokens price
-            token0_derivedETH = find_eth_per_token(db, token0['address'])
-            token1_derivedETH = find_eth_per_token(db, token1['address'])
+            token0_derivedETH = find_eth_per_token(db, token0['tokenAddress'])
+            token1_derivedETH = find_eth_per_token(db, token1['tokenAddress'])
             tokens_update_operations.extend([
                 UpdateOne({"_id": token0['_id']}, {"$set": {"derivedETH": Decimal128(token0_derivedETH)}}),
                 UpdateOne({"_id": token1['_id']}, {"$set": {"derivedETH": Decimal128(token1_derivedETH)}}),

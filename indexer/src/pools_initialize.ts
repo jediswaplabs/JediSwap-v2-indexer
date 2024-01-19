@@ -46,14 +46,14 @@ import {
         case SELECTOR_KEYS.INITIALIZE: {
           const poolAddress = event.fromAddress;
           const sqrtPriceX96 = Number(event.data[0]);
-          const tick = event.data[2];
+          const tick = Number(event.data[2]);
           return {
             entity: { poolAddress },
             update: {
               "$set": {
                 sqrtPriceX96,
                 tick,
-                timestamp: header?.timestamp,
+                timestamp: Date.parse(header?.timestamp),
                 block: Number(header?.blockNumber),
               },
             },

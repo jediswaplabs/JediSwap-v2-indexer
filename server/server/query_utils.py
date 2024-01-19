@@ -21,6 +21,6 @@ def get_tokens_from_pool(db: Database, existing_pool: dict) -> tuple[dict, dict]
     token1_address = existing_pool['token1']
 
     tokens_collection = db[Collection.TOKENS]
-    token0 = tokens_collection.find_one({'address': token0_address})
-    token1 = tokens_collection.find_one({'address': token1_address})
+    token0 = tokens_collection.find_one({'tokenAddress': token0_address})
+    token1 = tokens_collection.find_one({'tokenAddress': token1_address})
     return token0, token1

@@ -25,7 +25,7 @@ class Token:
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            address=data['address'],
+            tokenAddress=data['addtokenAddressress'],
             name=data['name'],
             symbol=data['symbol'],
             decimals=data['decimals'],
@@ -50,10 +50,10 @@ async def get_tokens(
 
     if where is not None:
         if where.address is not None:
-            query['address'] = where.address
+            query['tokenAddress'] = where.address
         if where.address_in:
             token_in = [token for token in where.address_in]
-            query['address'] = {'$in': token_in}
+            query['tokenAddress'] = {'$in': token_in}
 
     cursor = db[Collection.TOKENS].find(query, skip=skip, limit=first)
     cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
