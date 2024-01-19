@@ -39,8 +39,14 @@ TOKENS_MAPPING = [
 
 FACTORY_RECORD = {
     'address': FACTORY_ADDRESS,
+    'txCount': 0,
     'totalValueLockedETH': ZERO_DECIMAL128,
     'totalValueLockedUSD': ZERO_DECIMAL128,
+    'totalVolumeETH': ZERO_DECIMAL128,
+    'totalVolumeUSD': ZERO_DECIMAL128,
+    'untrackedVolumeUSD': ZERO_DECIMAL128,
+    'totalFeesETH': ZERO_DECIMAL128,
+    'totalFeesUSD': ZERO_DECIMAL128,
 }
 
 

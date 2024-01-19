@@ -31,6 +31,7 @@ def update_factory_record(db: Database, factory_totalValueLockedETH: Decimal, po
             'totalValueLockedUSD': Decimal128((factory_totalValueLockedETH + pool_totalValueLockedETH) * EthPrice.get()),
             'totalValueLockedETH': Decimal128(factory_totalValueLockedETH + pool_totalValueLockedETH)
             },
+        '$inc': {"txCount": 1},
     })
 
 
@@ -158,6 +159,118 @@ def handle_burn(db: Database, record: dict, factory: dict):
 
     update_factory_record(db, factory_totalValueLockedETH, pool_totalValueLockedETH)
     EventTracker.burn_count += 1
+
+
+def handle_swap(db: Database, record: dict, factory: dict):
+    pool = get_pool(db, record['poolAddress'])
+    token0, token1 = get_tokens_from_pool(db, pool)
+    amount0 = to_decimal(record['amount0'], token0['decimals'])
+    amount1 = to_decimal(record['amount1'], token1['decimals'])
+
+    old_tick = pool.get('tick')
+    if old_tick:
+        old_tick = convert_bigint_field(old_tick)
+
+    token0_derivedETH = token0['derivedETH'].to_decimal()
+    token1_derivedETH = token1['derivedETH'].to_decimal()
+
+    amount0_abs = abs(amount0)
+    amount1_abs = abs(amount1)
+
+    amount0_ETH = amount0_abs * token0_derivedETH
+    amount1_ETH = amount1_abs * token1_derivedETH
+
+    amount0_USD = amount0_ETH * EthPrice.get()
+    amount1_USD = amount1_ETH * EthPrice.get()
+
+    amount_total_USD_tracked = get_tracked_amount_usd(amount0_abs, token0['address'], token0_derivedETH, amount1_abs, token1['address'], token1_derivedETH) / 2 # TODO
+    amount_total_ETH_tracked = amount_total_USD_tracked / EthPrice.get()
+
+    amount_total_USD_untracked = (amount0_USD + amount1_USD) / 2
+
+    fees_ETH = amount_total_ETH_tracked * pool['fee'] / 1000000
+    fees_USD = amount_total_USD_untracked * pool['fee'] / 1000000
+
+    factory_update_data = dict()
+    factory_update_data['inc'] = dict()
+    factory_update_data['set'] = dict()
+    factory_update_data['inc']['txCount'] = 1
+    factory_update_data['inc']['totalVolumeETH'] = amount_total_ETH_tracked
+    factory_update_data['inc']['totalVolumeUSD'] = amount_total_USD_tracked
+    factory_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
+    factory_update_data['inc']['totalFeesETH'] = fees_ETH
+    factory_update_data['inc']['totalFeesUSD'] = fees_USD
+
+    pool_update_data = dict()
+    pool_update_data['inc'] = dict()
+    pool_update_data['set'] = dict()
+    pool_update_data['inc']['volumeToken0'] = amount0_abs
+    pool_update_data['inc']['volumeToken1'] = amount1_abs
+    pool_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
+    pool_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
+    pool_update_data['inc']['feesUSD'] = fees_USD
+    pool_update_data['inc']['txCount'] = 1
+    
+    pool_update_data['set']['liquidity'] = record['liquidity']
+    pool_update_data['set']['tick'] = record['tick']
+    pool_update_data['set']['sqrt_price'] = record['sqrt_price_X96']
+    pool_totalValueLockedToken0 = pool['totalValueLockedToken0'] + amount0
+    pool_totalValueLockedToken1 = pool['totalValueLockedToken1'] + amount1
+    pool_update_data['set']['totalValueLockedToken0'] = pool_totalValueLockedToken0
+    pool_update_data['set']['totalValueLockedToken1'] = pool_totalValueLockedToken1
+
+    token0_update_data = dict()
+    token0_update_data['inc'] = dict()
+    token0_update_data['set'] = dict()
+    token0_update_data['inc']['volume'] = amount0_abs
+    token0_totalValueLocked = token0['totalValueLocked'] + amount0
+    token0_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
+    token0_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
+    token0_update_data['inc']['feesUSD'] = fees_USD
+    token0_update_data['inc']['txCount'] = 1
+
+    token1_update_data = dict()
+    token1_update_data['inc'] = dict()
+    token1_update_data['set'] = dict()
+    token1_update_data['inc']['volume'] = amount1_abs
+    token1_totalValueLocked = token1['totalValueLocked'] + amount1
+    token1_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
+    token1_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
+    token1_update_data['inc']['feesUSD'] = fees_USD
+    token1_update_data['inc']['txCount'] = 1
+
+    prices = sqrt_price_X96_to_token_prices(record['sqrt_price_X96'], token0['decimals'], token1['decimals']) # TODO
+    pool_update_data['set']['token0Price'] = prices[0]
+    pool_update_data['set']['token1Price'] = prices[1]
+
+    # TODO update_eth_price
+
+    token0_derivedETH = token0_update_data['set']['derivedETH'] = find_eth_per_token(token0) # TODO
+    token1_derivedETH = token1_update_data['set']['derivedETH'] = find_eth_per_token(token1) # TODO
+    
+    factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal()
+
+    pool_totalValueLockedETH = (pool_totalValueLockedToken0 * token0_derivedETH) + (pool_totalValueLockedToken1 * token1_derivedETH)
+    pool_update_data['set']['totalValueLockedETH'] = pool_totalValueLockedETH
+    pool_update_data['set']['totalValueLockedUSD'] = pool_totalValueLockedETH * EthPrice.get()
+
+    factory_totalValueLockedETH = factory_totalValueLockedETH + pool_totalValueLockedETH
+    factory_update_data['set']['totalValueLockedETH'] = factory_totalValueLockedETH
+    factory_update_data['set']['totalValueLockedUSD'] = factory_totalValueLockedETH * EthPrice.get()
+
+    token1_update_data['set']['totalValueLocked'] = token0_totalValueLocked
+    token1_update_data['set']['totalValueLockedUSD'] = token0_totalValueLocked * token0_derivedETH * EthPrice.get()
+
+    token1_update_data['set']['totalValueLocked'] = token1_totalValueLocked
+    token1_update_data['set']['totalValueLockedUSD'] = token1_totalValueLocked * token1_derivedETH * EthPrice.get()
+
+    # TODO
+    # write_factory_update_data()
+    # write_pool_update_data()
+    # write_token0_update_data()
+    # write_token1_update_data()
+    
+    EventTracker.swap_count += 1
 
 
 EVENT_TO_FUNCTION_MAP = {
