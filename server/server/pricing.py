@@ -48,7 +48,7 @@ def find_eth_per_token(db: Database, token_addr: str) -> Decimal:
     else:
         for pool_address in WHITELISTED_POOLS:
             pool = get_pool(db, pool_address)
-            if pool and pool.get('liquidity', ZERO_DECIMAL128).to_decimal() > Decimal(0):
+            if pool and pool['liquidity'].to_decimal() > Decimal(0):
                 token0, token1 = get_tokens_from_pool(db, pool)
                 if pool['token0'] == token_addr:
                     eth_locked = pool['totalValueLockedToken1'].to_decimal() * token1['derivedETH'].to_decimal()

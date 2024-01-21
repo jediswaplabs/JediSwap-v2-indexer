@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 
-from bson import Decimal128
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient
 from pymongo.database import Database
 
 from server.const import Collection, FACTORY_ADDRESS, ETH, USDC, DAI, USDT, WBTC, ZERO_DECIMAL128
-from server.pricing import EthPrice, sqrt_price_x96_to_token_prices, find_eth_per_token
-from server.query_utils import get_tokens_from_pool
 
 
 @dataclass
@@ -56,7 +53,6 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
         db = mongo[db_name]
         tokens_collection = db[Collection.TOKENS]
         factory_collection = db[Collection.FACTORIES]
-        pools_collection = db[Collection.POOLS]
 
         # add tokens
         tokens_to_add = []
@@ -73,34 +69,3 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
         if existing_factory_record is None:
             factory_collection.insert_one(FACTORY_RECORD)
             print('Factory record inserted')
-
-        # add tokens price for pools
-        EthPrice.set(rpc_url)
-        pools_update_operations = []
-        tokens_update_operations = []
-        for pool in pools_collection.find({
-            "$and": [
-                {'sqrtPriceX96': {"$exists": True}}, 
-                {'sqrtPriceX96': {"$ne": None}},
-                ]}):
-            token0, token1 = get_tokens_from_pool(db, pool)
-            price0, price1 = sqrt_price_x96_to_token_prices(pool['sqrtPriceX96'], token0['decimals'], token1['decimals'])
-            pools_update_operations = []
-            pools_update_operations.append(
-                UpdateOne({"_id": pool['_id']}, {
-                    "$set": {
-                        "price0": Decimal128(price0),
-                        "price1": Decimal128(price1),
-            }}))
-
-            # update tokens price
-            token0_derivedETH = find_eth_per_token(db, token0['tokenAddress'])
-            token1_derivedETH = find_eth_per_token(db, token1['tokenAddress'])
-            tokens_update_operations.extend([
-                UpdateOne({"_id": token0['_id']}, {"$set": {"derivedETH": Decimal128(token0_derivedETH)}}),
-                UpdateOne({"_id": token1['_id']}, {"$set": {"derivedETH": Decimal128(token1_derivedETH)}}),
-            ])
-        if pools_update_operations:
-            pools_collection.bulk_write(pools_update_operations)
-        if tokens_update_operations:
-            tokens_collection.bulk_write(tokens_update_operations)

@@ -16,13 +16,13 @@ def get_tokens_decimals_from_position(db: Database, rpc_url: str, position_id: i
     if contract is not None:
         (result, ) = contract.functions['get_position'].call_sync(position_id)
         token0_address = hex(result[1]['token0'])
-        token0_address = f"0x0{token0_address[2:]}"
         token1_address = hex(result[1]['token1'])
-        token1_address = f"0x0{token1_address[2:]}"
+
         tokens_collection = db[Collection.TOKENS]
         token0 = tokens_collection.find_one({'tokenAddress': token0_address})
         token1 = tokens_collection.find_one({'tokenAddress': token1_address})
         return token0['decimals'], token1['decimals']
+    
     return DEFAULT_DECIMALS, DEFAULT_DECIMALS
 
 

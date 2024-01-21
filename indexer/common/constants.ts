@@ -1,6 +1,6 @@
 import { hash } from "./deps.ts";
 
-export function formatFelt(name: string): string {
+export function formatSelectorKey(name: string): string {
   const key = BigInt(hash.getSelectorFromName(name));
   return `0x${key.toString(16).padStart(64, "0")}`;
 }
@@ -26,16 +26,16 @@ export const EVENTS = {
 }
 
 export const SELECTOR_KEYS = {
-  FEE_AMOUNT_ENABLED: formatFelt(EVENTS.FEE_AMOUNT_ENABLED),
-  POOL_CREATED: formatFelt(EVENTS.POOL_CREATED),
-  TRANSFER: formatFelt(EVENTS.TRANSFER),
-  INCREASE_LIQUIDITY: formatFelt(EVENTS.INCREASE_LIQUIDITY),
-  DECREASE_LIQUIDITY: formatFelt(EVENTS.DECREASE_LIQUIDITY),
-  COLLECT: formatFelt(EVENTS.COLLECT),
-  INITIALIZE: formatFelt(EVENTS.INITIALIZE),
-  MINT: formatFelt(EVENTS.MINT),
-  BURN: formatFelt(EVENTS.BURN),
-  SWAP: formatFelt(EVENTS.SWAP),
+  FEE_AMOUNT_ENABLED: formatSelectorKey(EVENTS.FEE_AMOUNT_ENABLED),
+  POOL_CREATED: formatSelectorKey(EVENTS.POOL_CREATED),
+  TRANSFER: formatSelectorKey(EVENTS.TRANSFER),
+  INCREASE_LIQUIDITY: formatSelectorKey(EVENTS.INCREASE_LIQUIDITY),
+  DECREASE_LIQUIDITY: formatSelectorKey(EVENTS.DECREASE_LIQUIDITY),
+  COLLECT: formatSelectorKey(EVENTS.COLLECT),
+  INITIALIZE: formatSelectorKey(EVENTS.INITIALIZE),
+  MINT: formatSelectorKey(EVENTS.MINT),
+  BURN: formatSelectorKey(EVENTS.BURN),
+  SWAP: formatSelectorKey(EVENTS.SWAP),
 };
 
 export const FACTORY_CONTRACT = Deno.env.get(
@@ -43,10 +43,6 @@ export const FACTORY_CONTRACT = Deno.env.get(
 ) as string;
 export const NFT_ROUTER_CONTRACT = Deno.env.get(
   "NFT_ROUTER_CONTRACT"
-) as string;
-// TODO: add more pools contracts
-export const POOL_CONTRACT = Deno.env.get(
-  "POOL_CONTRACT"
 ) as string;
 
 export const INDEX_FROM_BLOCK = Number(Deno.env.get(

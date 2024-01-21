@@ -12,7 +12,7 @@ from server.interval_updates import (
     update_token_day_data,
     update_token_hour_data
 )
-from server.pricing import EthPrice
+from server.pricing import EthPrice, find_eth_per_token
 from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_latest_value
 from server.utils import to_decimal, convert_bigint_field
 
@@ -20,6 +20,7 @@ from pymongo import MongoClient, UpdateOne
 
 
 class Event:
+    INITIALIZE = 'Initialize'
     MINT = 'Mint'
     BURN = 'Burn'
     SWAP = 'Swap'
@@ -27,6 +28,7 @@ class Event:
 
 
 class EventTracker:
+    initialize_count = 0
     mint_count = 0
     swap_count = 0
     burn_count = 0
@@ -75,7 +77,58 @@ def get_factory_record(db: Database) -> dict:
     return db[Collection.FACTORIES].find_one({'address': FACTORY_ADDRESS})
 
 
-def handle_mint(db: Database, record: dict, factory: dict):
+def handle_initialize(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
+
+    pool = get_pool(db, record['poolAddress'])
+    token0, token1 = get_tokens_from_pool(db, pool)
+
+    pool_update_data = {
+        '$set': {
+            'sqrtPrice': record['sqrtPriceX96'],
+            'tick': record['tick'],
+            'totalValueLockedETH': ZERO_DECIMAL128,
+            'totalValueLockedUSD': ZERO_DECIMAL128,
+            'totalValueLockedToken0': ZERO_DECIMAL128,
+            'totalValueLockedToken1': ZERO_DECIMAL128,
+            'liquidity': ZERO_DECIMAL128,
+            'token0Price': ZERO_DECIMAL128,
+            'token1Price': ZERO_DECIMAL128,
+            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
+            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
+        }
+    }
+
+    update_pool_record(db, pool['_id'], pool_update_data)
+
+    EthPrice.set(rpc_url)
+
+    pool = get_pool(db, record['poolAddress'])
+    update_pool_day_data(db, pool, record['timestamp'])
+    update_pool_hour_data(db, pool, record['timestamp'])
+
+    token0_update_data = {
+        '$set': {
+            'derivedETH': Decimal128(find_eth_per_token(db, token0['tokenAddress'])),
+        }
+    }
+    token1_update_data = {
+        '$set': {
+            'derivedETH': Decimal128(find_eth_per_token(db, token1['tokenAddress'])),
+        }
+    }
+    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
+
+    EventTracker.initialize_count += 1
+
+
+def handle_mint(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    factory = kwargs['factory']
+
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
@@ -129,8 +182,8 @@ def handle_mint(db: Database, record: dict, factory: dict):
     factory_update_data['$inc']['txCount'] = 1
 
     update_factory_day_data(db, factory, record['timestamp'])
-    # update_pool_day_data(db, pool, record['timestamp'])
-    # update_pool_hour_data(db, pool, record['timestamp'])
+    update_pool_day_data(db, pool, record['timestamp'])
+    update_pool_hour_data(db, pool, record['timestamp'])
     update_token_day_data(db, token0, record['timestamp'])
     update_token_hour_data(db, token0, record['timestamp'])
     update_token_day_data(db, token1, record['timestamp'])
@@ -143,7 +196,11 @@ def handle_mint(db: Database, record: dict, factory: dict):
     EventTracker.mint_count += 1
 
 
-def handle_burn(db: Database, record: dict, factory: dict):
+def handle_burn(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    factory = kwargs['factory']
+
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
@@ -197,8 +254,8 @@ def handle_burn(db: Database, record: dict, factory: dict):
     factory_update_data['$inc']['txCount'] = 1
 
     update_factory_day_data(db, factory, record['timestamp'])
-    # update_pool_day_data(db, pool, record['timestamp'])
-    # update_pool_hour_data(db, pool, record['timestamp'])
+    update_pool_day_data(db, pool, record['timestamp'])
+    update_pool_hour_data(db, pool, record['timestamp'])
     update_token_day_data(db, token0, record['timestamp'])
     update_token_hour_data(db, token0, record['timestamp'])
     update_token_day_data(db, token1, record['timestamp'])
@@ -211,7 +268,11 @@ def handle_burn(db: Database, record: dict, factory: dict):
     EventTracker.burn_count += 1
 
 
-def handle_swap(db: Database, record: dict, factory: dict):
+def handle_swap(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    factory = kwargs['factory']
+
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
@@ -324,6 +385,7 @@ def handle_swap(db: Database, record: dict, factory: dict):
 
 
 EVENT_TO_FUNCTION_MAP = {
+    Event.INITIALIZE: handle_initialize,
     Event.MINT: handle_mint,
     # Event.SWAP: handle_swap, # TODO
     Event.BURN: handle_burn,
@@ -340,12 +402,17 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
             event_func = EVENT_TO_FUNCTION_MAP.get(record['event'])
             if event_func:
                 factory = get_factory_record(db)
-                event_func(db, record, factory)
+                event_func(
+                    db=db, 
+                    record=record, 
+                    factory=factory, 
+                    rpc_url=rpc_url)
                 processed_records.append(
                     UpdateOne({"_id": record['_id']}, {"$set": {"processed": True}})
                 )
         if processed_records:
             db[Collection.POOLS_DATA].bulk_write(processed_records)
 
+    print(f'Successfully processed {EventTracker.initialize_count} Initialize events')
     print(f'Successfully processed {EventTracker.mint_count} Mint events')
     print(f'Successfully processed {EventTracker.burn_count} Burn events')

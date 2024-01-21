@@ -1,10 +1,11 @@
 from bson import Decimal128
 from pymongo.database import Database
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
+from server.const import Collection, ZERO_DECIMAL128
 from server.pricing import EthPrice
+from server.query_utils import get_pool
 
-from pymongo import MongoClient, UpdateOne
+from pymongo import UpdateOne
 
 
 def get_day_id(timestamp: str) -> tuple[int, int]:
@@ -59,7 +60,7 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str):
             'volumeToken1': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
-            'txCount': ZERO_DECIMAL128,
+            'txCount': 0,
             'feeGrowthGlobal0X128': ZERO_DECIMAL128,
             'feeGrowthGlobal1X128': ZERO_DECIMAL128,
             'open': pool_record['token0Price'],
@@ -68,29 +69,27 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str):
             'close': pool_record['token0Price'],
         }
 
-    if pool_record['token0Price'] > pool_day_data_record['high']:
+    if pool_record['token0Price'].to_decimal() > pool_day_data_record['high'].to_decimal():
         pool_day_data_record['high'] = pool_record['token0Price']
 
-    if pool_record['token0Price'] < pool_day_data_record['low']:
+    if pool_record['token0Price'].to_decimal() < pool_day_data_record['low'].to_decimal():
         pool_day_data_record['low'] = pool_record['token0Price']
 
-    pool_day_data_record['liquidity'] = pool_record['liquidity'],
-    pool_day_data_record['sqrtPrice'] = pool_record['sqrtPrice'],
-    pool_day_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128'],
-    pool_day_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128'],
-    pool_day_data_record['token0Price'] = pool_record['token0Price'],
-    pool_day_data_record['token1Price'] = pool_record['token1Price'],
-    pool_day_data_record['tick'] = pool_record['tick'],
-    pool_day_data_record['tvlUSD'] = pool_record['totalValueLockedUSD'],
+    pool_day_data_record['liquidity'] = pool_record['liquidity']
+    pool_day_data_record['sqrtPrice'] = pool_record['sqrtPrice']
+    pool_day_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128']
+    pool_day_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128']
+    pool_day_data_record['token0Price'] = pool_record['token0Price']
+    pool_day_data_record['token1Price'] = pool_record['token1Price']
+    pool_day_data_record['tick'] = pool_record['tick']
+    pool_day_data_record['tvlUSD'] = pool_record['totalValueLockedUSD']
+    pool_day_data_record['txCount'] += 1
 
     update_request = UpdateOne({
         'poolAddress': pool_record['poolAddress'],
         'dayId': day_id,
         }, {
             '$set': pool_day_data_record,
-            '$inc': {
-                'txCount': 1
-            }
         }, upsert=True)
     db[Collection.POOLS_DAY_DATA].bulk_write([update_request])
   
@@ -111,7 +110,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str):
             'volumeToken1': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
-            'txCount': ZERO_DECIMAL128,
+            'txCount': 0,
             'feeGrowthGlobal0X128': ZERO_DECIMAL128,
             'feeGrowthGlobal1X128': ZERO_DECIMAL128,
             'open': pool_record['token0Price'],
@@ -120,29 +119,27 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str):
             'close': pool_record['token0Price'],
         }
 
-    if pool_record['token0Price'] > pool_hour_data_record['high']:
+    if pool_record['token0Price'].to_decimal() > pool_hour_data_record['high'].to_decimal():
         pool_hour_data_record['high'] = pool_record['token0Price']
 
-    if pool_record['token0Price'] < pool_hour_data_record['low']:
+    if pool_record['token0Price'].to_decimal() < pool_hour_data_record['low'].to_decimal():
         pool_hour_data_record['low'] = pool_record['token0Price']
 
-    pool_hour_data_record['liquidity'] = pool_record['liquidity'],
-    pool_hour_data_record['sqrtPrice'] = pool_record['sqrtPrice'],
-    pool_hour_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128'],
-    pool_hour_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128'],
-    pool_hour_data_record['token0Price'] = pool_record['token0Price'],
-    pool_hour_data_record['token1Price'] = pool_record['token1Price'],
-    pool_hour_data_record['tick'] = pool_record['tick'],
-    pool_hour_data_record['tvlUSD'] = pool_record['totalValueLockedUSD'],
+    pool_hour_data_record['liquidity'] = pool_record['liquidity']
+    pool_hour_data_record['sqrtPrice'] = pool_record['sqrtPrice']
+    pool_hour_data_record['feeGrowthGlobal0X128'] = pool_record['feeGrowthGlobal0X128']
+    pool_hour_data_record['feeGrowthGlobal1X128'] = pool_record['feeGrowthGlobal1X128']
+    pool_hour_data_record['token0Price'] = pool_record['token0Price']
+    pool_hour_data_record['token1Price'] = pool_record['token1Price']
+    pool_hour_data_record['tick'] = pool_record['tick']
+    pool_hour_data_record['tvlUSD'] = pool_record['totalValueLockedUSD']
+    pool_hour_data_record['txCount'] += 1
 
     update_request = UpdateOne({
         'poolAddress': pool_record['poolAddress'],
         'hourId': hour_id,
         }, {
             '$set': pool_hour_data_record,
-            '$inc': {
-                'txCount': 1
-            }
         }, upsert=True)
     db[Collection.POOLS_HOUR_DATA].bulk_write([update_request])
 

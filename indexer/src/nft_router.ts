@@ -11,6 +11,9 @@ import {
     DB_NAME,
     STREAM_URL,
   } from "../common/constants.ts";
+  import {
+    formatFelt
+  } from "../common/utils.ts";
   
   const filter = {
     header: { weak: true },
@@ -56,39 +59,40 @@ import {
     
   export default function transform({ header, events }: Block) {
     const output = events.map(({ event }: EventWithTransaction) => {
+      const txMeta = {
+        positionAddress: formatFelt(event.fromAddress),
+        timestamp: Date.parse(header?.timestamp),
+        block: Number(header?.blockNumber),
+      };
       const key = event.keys[0];
       switch (key) {
         case SELECTOR_KEYS.TRANSFER: {
-          const positionId = Number(event.keys[3])
-          const ownerAddress = event.keys[2]
+          const positionId = Number(event.keys[3]);
+          const ownerAddress = formatFelt(event.keys[2]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITIONS,
             update: {
               "$set": {
                 positionId,
-                positionAddress: event.fromAddress,
                 ownerAddress,
-                timestamp: Date.parse(header?.timestamp),
-                block: Number(header?.blockNumber),
+                ...txMeta,
               },
             },
           };
         }
         case SELECTOR_KEYS.INCREASE_LIQUIDITY: {
-          const positionId = Number(event.data[0])
-          const liquidity = Number(event.data[2])
-          const amount0 = Number(event.data[3])
-          const amount1 = Number(event.data[5])
+          const positionId = Number(event.data[0]);
+          const liquidity = Number(event.data[2]);
+          const amount0 = Number(event.data[3]);
+          const amount1 = Number(event.data[5]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITIONS,
             update: {
               "$set": {
                 positionId,
-                positionAddress: event.fromAddress,
-                timestamp: Date.parse(header?.timestamp),
-                block: Number(header?.blockNumber),
+                ...txMeta,
               },
               "$inc": {
                 depositedToken0: amount0,
@@ -99,19 +103,17 @@ import {
           };
         };
         case SELECTOR_KEYS.DECREASE_LIQUIDITY: {
-          const positionId = Number(event.data[0])
-          const liquidity = Number(event.data[2])
-          const amount0 = Number(event.data[3])
-          const amount1 = Number(event.data[5])
+          const positionId = Number(event.data[0]);
+          const liquidity = Number(event.data[2]);
+          const amount0 = Number(event.data[3]);
+          const amount1 = Number(event.data[5]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITIONS,
             update: {
               "$set": {
                 positionId,
-                positionAddress: event.fromAddress,
-                timestamp: Date.parse(header?.timestamp),
-                block: Number(header?.blockNumber),
+                ...txMeta,
               },
               "$inc": {
                 withdrawnToken0: amount0,
@@ -122,20 +124,18 @@ import {
           };
         };
         case SELECTOR_KEYS.COLLECT: {
-          const positionId = Number(event.data[0])
-          const ownerAddress = event.data[2]
-          const amount0_collect = Number(event.data[3])
-          const amount1_collect = Number(event.data[4])
+          const positionId = Number(event.data[0]);
+          const ownerAddress = formatFelt(event.data[2]);
+          const amount0_collect = Number(event.data[3]);
+          const amount1_collect = Number(event.data[4]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITION_FEES,
             update: {
               "$set": {
                 positionId,
-                positionAddress: event.fromAddress,
                 ownerAddress,
-                timestamp: Date.parse(header?.timestamp),
-                block: Number(header?.blockNumber),
+                ...txMeta,
               },
               "$inc": {
                 collectedFeesToken0: amount0_collect,
