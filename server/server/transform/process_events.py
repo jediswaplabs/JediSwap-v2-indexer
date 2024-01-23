@@ -1,10 +1,11 @@
+import time
 from decimal import Decimal
 
 from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
+from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, TIME_INTERVAL
 from server.interval_updates import (
     update_factory_day_data,
     update_pool_day_data,
@@ -392,7 +393,7 @@ EVENT_TO_FUNCTION_MAP = {
 }
 
 
-def run(mongo_url: str, mongo_database: Database, rpc_url: str):
+def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
     processed_records = []
     EthPrice.set(rpc_url)
     with MongoClient(mongo_url) as mongo:
@@ -416,3 +417,9 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
     print(f'Successfully processed {EventTracker.initialize_count} Initialize events')
     print(f'Successfully processed {EventTracker.mint_count} Mint events')
     print(f'Successfully processed {EventTracker.burn_count} Burn events')
+
+
+def run(mongo_url: str, mongo_database: Database, rpc_url: str):
+    while True:
+        process_events(mongo_url, mongo_database, rpc_url)
+        time.sleep(TIME_INTERVAL)

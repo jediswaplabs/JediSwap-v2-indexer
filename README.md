@@ -8,11 +8,11 @@ The repository stores three services:
 2. `Data transformer` which procces and transform data collected by the `indexer`. It creates or updates data in MongoDb so it can be used directly by the `server` app. Services should run periodically to processes the new data.
 3. `Server` which is used to create a GraphQL APIs. In this stage the service reads data from the DB without any major processing.
  
-## Set up
+## Run locally
 
 ### Indexer
 
-1. Adjust environment variables in `indexer/env-goerli` file
+1. Adjust environment variables in `env-<network>` file
 2. Create an account in [Apibara](https://app.apibara.com/auth/register)
 3. Set apibara auth token as env variable
 
@@ -23,7 +23,6 @@ export AUTH_TOKEN=<your_apibara_key>
 4. Run the indexer
 
 ```
-cd indexer
 docker compose up
 ```
 
@@ -31,26 +30,11 @@ docker compose up
 
 #### Prerequisite
 
-Create .env file and set variables:
-
-```
-cd server
-vi .env
-```
-```
-MONGO_URL=
-MONGO_DB=
-NETWORK=
-RPC_URL=
-```
-
-Note:
-- `MONGO_DB` should have the same value as `DB_NAME` in the indexer
-- `testnet` or `mainnet` are allowed values for the `NETWORK` env variables
+Adjust environment variables in `env-<network>` file
 
 #### Data transformer for pools
 
-1. Run the commnad to set up collections (tokens, factory, pools) in DB
+1. Run the commnad to set up collections (tokens, factory) in DB
 
 ```
 poetry run server init
@@ -64,7 +48,7 @@ poetry run server process
 
 #### Data transformer for positions
 
-1. Run the commnad to set up collections (tokens, factory, pools) in DB
+1. Run the commnad to set up collections (tokens, factory) in DB
 
 ```
 poetry run server init
@@ -82,4 +66,20 @@ poetry run server positions
 
 ```
 poetry run server graphql
+```
+
+## Run all services via docker compose
+
+1. Adjust environment variables in `env-<network>` file
+2. Create an account in [Apibara](https://app.apibara.com/auth/register)
+3. Set apibara auth token as env variable
+
+```
+export AUTH_TOKEN=<your_apibara_key>
+```
+
+4. Run `docker-compose.yml` or `docker-compose.prod.yml`
+
+```
+docker compose up
 ```

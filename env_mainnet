@@ -1,0 +1,11 @@
+INDEX_FROM_BLOCK=
+STREAM_URL="https://mainnet.starknet.a5a.ch"
+
+MONGODB_CONNECTION_STRING=
+DB_NAME=""
+
+FACTORY_CONTRACT = ""
+NFT_ROUTER_CONTRACT = ""
+
+NETWORK="mainnet"
+RPC_URL=""

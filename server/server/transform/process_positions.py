@@ -1,9 +1,12 @@
+# TODO: remove file and implement this logic in the indexer
+import time
+
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import Collection, NFT_ROUTER, ZERO_ADDRESS, DEFAULT_DECIMALS
+from server.const import Collection, NFT_ROUTER, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
 from server.query_utils import filter_by_the_latest_value
 
 
@@ -82,9 +85,15 @@ def handle_positions_fees(db: Database):
     print(f'Successfully processed {processed_positions_records} Positions Feees records')
 
 
-def run(mongo_url: str, mongo_database: Database, rpc_url: str):
+def process_positions(mongo_url: str, mongo_database: Database, rpc_url: str):
     with MongoClient(mongo_url) as mongo:
         db_name = mongo_database.replace('-', '_')
         db = mongo[db_name]
         handle_positions(db, rpc_url)
         handle_positions_fees(db)
+
+
+def run(mongo_url: str, mongo_database: Database, rpc_url: str):
+    while True:
+        process_positions(mongo_url, mongo_database, rpc_url)
+        time.sleep(TIME_INTERVAL)
