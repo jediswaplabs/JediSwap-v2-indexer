@@ -13,7 +13,7 @@ from server.interval_updates import (
     update_token_day_data,
     update_token_hour_data
 )
-from server.pricing import EthPrice, find_eth_per_token
+from server.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
 from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_latest_value
 from server.utils import to_decimal, convert_bigint_field
 
@@ -273,6 +273,7 @@ def handle_swap(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
     factory = kwargs['factory']
+    rpc_url = kwargs['rpc_url']
 
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
@@ -295,7 +296,7 @@ def handle_swap(*args, **kwargs):
     amount0_USD = amount0_ETH * EthPrice.get()
     amount1_USD = amount1_ETH * EthPrice.get()
 
-    amount_total_USD_tracked = get_tracked_amount_usd(amount0_abs, token0['tokenAddress'], token0_derivedETH, amount1_abs, token1['tokenAddress'], token1_derivedETH) / 2 # TODO
+    amount_total_USD_tracked = get_tracked_amount_usd(amount0_abs, token0['tokenAddress'], token0_derivedETH, amount1_abs, token1['tokenAddress'], token1_derivedETH) / 2
     amount_total_ETH_tracked = amount_total_USD_tracked / EthPrice.get()
 
     amount_total_USD_untracked = (amount0_USD + amount1_USD) / 2
@@ -351,14 +352,14 @@ def handle_swap(*args, **kwargs):
     token1_update_data['inc']['feesUSD'] = fees_USD
     token1_update_data['inc']['txCount'] = 1
 
-    prices = sqrt_price_X96_to_token_prices(record['sqrt_price_X96'], token0['decimals'], token1['decimals']) # TODO
+    prices = sqrt_price_X96_to_token_prices(record['sqrt_price_X96'], token0['decimals'], token1['decimals'])
     pool_update_data['set']['token0Price'] = prices[0]
     pool_update_data['set']['token1Price'] = prices[1]
 
-    # TODO update_eth_price
+    EthPrice.set(rpc_url)
 
-    token0_derivedETH = token0_update_data['set']['derivedETH'] = find_eth_per_token(token0) # TODO
-    token1_derivedETH = token1_update_data['set']['derivedETH'] = find_eth_per_token(token1) # TODO
+    token0_derivedETH = token0_update_data['set']['derivedETH'] = find_eth_per_token(token0)
+    token1_derivedETH = token1_update_data['set']['derivedETH'] = find_eth_per_token(token1)
     
     factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal()
 
@@ -376,11 +377,19 @@ def handle_swap(*args, **kwargs):
     token1_update_data['set']['totalValueLocked'] = token1_totalValueLocked
     token1_update_data['set']['totalValueLockedUSD'] = token1_totalValueLocked * token1_derivedETH * EthPrice.get()
 
-    # TODO
-    # write_factory_update_data()
-    # write_pool_update_data()
-    # write_token0_update_data()
-    # write_token1_update_data()
+    # TODO Update fee growth
+
+    update_factory_day_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
+    update_pool_day_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
+    update_pool_hour_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
+    update_token_day_data(db, token0, record['timestamp'], amount_total_USD_tracked, amount0_abs, fees_USD)
+    update_token_hour_data(db, token0, record['timestamp'], amount_total_USD_tracked, amount0_abs, fees_USD)
+    update_token_day_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
+    update_token_hour_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
+
+    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
+    update_pool_record(db, pool['_id'], pool_update_data)
+    update_factory_record(db, factory_update_data)
     
     EventTracker.swap_count += 1
 
@@ -388,7 +397,7 @@ def handle_swap(*args, **kwargs):
 EVENT_TO_FUNCTION_MAP = {
     Event.INITIALIZE: handle_initialize,
     Event.MINT: handle_mint,
-    # Event.SWAP: handle_swap, # TODO
+    Event.SWAP: handle_swap,
     Event.BURN: handle_burn,
 }
 
@@ -416,6 +425,7 @@ def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
 
     print(f'Successfully processed {EventTracker.initialize_count} Initialize events')
     print(f'Successfully processed {EventTracker.mint_count} Mint events')
+    print(f'Successfully processed {EventTracker.swap_count} Swap events')
     print(f'Successfully processed {EventTracker.burn_count} Burn events')
 
 

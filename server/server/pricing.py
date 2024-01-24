@@ -4,7 +4,7 @@ from pymongo.database import Database
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, ZERO_DECIMAL128
+from server.const import ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL128
 from server.query_utils import get_pool, get_tokens_from_pool
 from server.utils import exponent_to_decimal, safe_div
 
@@ -62,6 +62,20 @@ def find_eth_per_token(db: Database, token_addr: str) -> Decimal:
                         price_so_far = pool['token0Price'].to_decimal() * token0['derivedETH'].to_decimal()
     return price_so_far
 
+def get_tracked_amount_usd(amount0_abs: Decimal, token0_address: str, token0_derivedETH: Decimal, amount1_abs: Decimal, token1_address: str, token1_derivedETH: Decimal) -> Decimal:
+    price0_USD = token0_derivedETH * EthPrice.get()
+    price1_USD = token1_derivedETH * EthPrice.get()
+
+    if (token0_address in WHITELISTED_TOKENS and token1_address in WHITELISTED_TOKENS):
+        return (amount0_abs * price0_USD + amount1_abs * price1_USD)
+    
+    if (token0_address in WHITELISTED_TOKENS and token1_address not in WHITELISTED_TOKENS):
+        return amount0_abs * price0_USD * 2
+    
+    if (token0_address not in WHITELISTED_TOKENS and token1_address in WHITELISTED_TOKENS):
+        return amount1_abs * price1_USD * 2
+    
+    return ZERO_DECIMAL128
 
 
 def sqrt_price_x96_to_token_prices(sqrt_price_x96: float, token0_decimals: int, token1_decimals: int
