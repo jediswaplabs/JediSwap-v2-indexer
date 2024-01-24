@@ -7,12 +7,12 @@ from pymongo.database import Database
 from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import add_order_by_constraint
-from server.const import Collection
+from server.const import Collection, ZERO_DECIMAL128
 
 
 @strawberry.type
 class Token:
-    address: str
+    tokenAddress: str
 
     name: str
     symbol: str
@@ -21,24 +21,36 @@ class Token:
     totalValueLocked: Decimal
     totalValueLockedUSD: Decimal
     derivedETH: Decimal
+ 
+    feesUSD: Decimal
+    untrackedVolumeUSD: Decimal
+    volume: Decimal
+    volumeUSD: Decimal
+
+    txCount: int
 
     @classmethod
     def from_mongo(cls, data):
         return cls(
-            tokenAddress=data['addtokenAddressress'],
+            tokenAddress=data['tokenAddress'],
             name=data['name'],
             symbol=data['symbol'],
             decimals=data['decimals'],
             totalValueLocked=data['totalValueLocked'].to_decimal(),
             totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
             derivedETH=data['derivedETH'].to_decimal(),
+            feesUSD=data.get('feesUSD', ZERO_DECIMAL128).to_decimal(),
+            untrackedVolumeUSD=data.get('untrackedVolumeUSD', ZERO_DECIMAL128).to_decimal(),
+            volume=data.get('volume', ZERO_DECIMAL128).to_decimal(),
+            volumeUSD=data.get('volumeUSD', ZERO_DECIMAL128).to_decimal(),
+            txCount=data.get('txCount', 0),
         )
 
 
 @strawberry.input
 class WhereFilterForToken:
-    address: Optional[str] = None
-    address_in: Optional[List[str]] = field(default_factory=list)
+    tokenAddress: Optional[str] = None
+    tokenAddress_in: Optional[List[str]] = field(default_factory=list)
 
 
 async def get_tokens(
@@ -49,8 +61,8 @@ async def get_tokens(
     query = {}
 
     if where is not None:
-        if where.address is not None:
-            query['tokenAddress'] = where.address
+        if where.tokenAddress is not None:
+            query['tokenAddress'] = where.tokenAddress
         if where.address_in:
             token_in = [token for token in where.address_in]
             query['tokenAddress'] = {'$in': token_in}

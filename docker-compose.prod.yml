@@ -1,0 +1,113 @@
+version: '3.6'
+
+services:
+  mongo:
+    image: mongo:latest
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: apibara
+      MONGO_INITDB_ROOT_PASSWORD: apibara
+    ports:
+      - 27017:27017
+    volumes:
+      - ./_docker/apibara_mongodb:/data/db
+
+  etcd:
+    image: docker.io/bitnami/etcd:3.5
+    environment:
+      ALLOW_NONE_AUTHENTICATION: "yes"
+    volumes:
+      - etcd_data:/bitnami/etcd
+
+  factory:
+    image: quay.io/apibara/sink-mongo:0.5.2
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_mainnet
+      - /data/indexer/src/factory.ts
+    depends_on:
+      - etcd
+      - mongo
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: factory
+      PERSIST_TO_ETCD: http://etcd:2379
+
+  nft_router:
+    image: quay.io/apibara/sink-mongo:0.5.2
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_mainnet
+      - /data/indexer/src/nft_router.ts
+    depends_on:
+      - etcd
+      - mongo
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: nft_router
+      PERSIST_TO_ETCD: http://etcd:2379
+
+  init_db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - init
+    - --env-file
+    - env_mainnet
+    depends_on:
+      - mongo
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+  event_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - process
+    - --env-file
+    - env_mainnet
+    depends_on:
+      - mongo
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+  position_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - positions
+    - --env-file
+    - env_mainnet
+    depends_on:
+      - mongo
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+  graphql:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+    - 8000:8000
+    command:
+    - graphql
+    - --env-file
+    - env_mainnet
+    depends_on:
+      - mongo
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+
+volumes:
+  etcd_data:

@@ -14,13 +14,25 @@ class Factory:
 
     totalValueLockedETH: Decimal
     totalValueLockedUSD: Decimal
+    totalVolumeETH: Decimal
+    totalVolumeUSD: Decimal
+    untrackedVolumeUSD: Decimal
+    totalFeesETH: Decimal
+    totalFeesUSD: Decimal
+    txCount: int
 
     @classmethod
     def from_mongo(cls, data: dict):
         return cls(
             address=data['address'],    
-            totalValueLockedETH=data.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal(),
-            totalValueLockedUSD=data.get('totalValueLockedUSD', ZERO_DECIMAL128).to_decimal(),
+            totalValueLockedETH=data['totalValueLockedETH'].to_decimal(),
+            totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
+            totalVolumeETH=data['totalVolumeETH'].to_decimal(),
+            totalVolumeUSD=data['totalVolumeUSD'].to_decimal(),
+            untrackedVolumeUSD=data['untrackedVolumeUSD'].to_decimal(),
+            totalFeesETH=data['totalFeesETH'].to_decimal(),
+            totalFeesUSD=data['totalFeesUSD'].to_decimal(),
+            txCount=data['txCount'],
         )
 
 

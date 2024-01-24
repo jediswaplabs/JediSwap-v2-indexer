@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, TypeVar, Generic
 
 from pymongo import ASCENDING, DESCENDING
@@ -51,3 +52,7 @@ def add_order_by_constraint(cursor: CursorType, orderBy: Optional[str] = None,
         else:
             cursor = cursor.sort(orderBy, DESCENDING)
     return cursor
+
+
+def convert_timestamp_to_datetime(timestamp: float):
+    return datetime.fromtimestamp(timestamp / 1e3)

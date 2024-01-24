@@ -1,57 +1,80 @@
+import datetime
 from decimal import Decimal
 from typing import List, Optional
 
+from bson import Decimal128
 import strawberry
 from pymongo.database import Database
 
-from server.graphql.resolvers.helpers import BlockFilter, add_block_constraint
+from server.graphql.resolvers.helpers import BlockFilter, add_block_constraint, convert_timestamp_to_datetime
 from server.const import Collection, ZERO_DECIMAL128
 from server.query_utils import filter_by_the_latest_value
-from server.utils import convert_bigint_field
 
 
 @strawberry.type
 class PoolCreated:
     id: str
 
+    token0: str
+    token1: str
     fee: int
     tickSpacing: int
     poolAddress: str
-    token0: str
-    token1: str
-    liquidity: Decimal
-    tick: Optional[Decimal] or None
-    sqrtPriceX96: Optional[Decimal] or None
-    timestamp: str
+ 
+    timestamp: datetime.datetime
     block: int
+
+    feeGrowthGlobal0X128: Decimal
+    feeGrowthGlobal1X128: Decimal
+    liquidity: Decimal
+    tick: float
+    sqrtPriceX96: float
+
+    token0Price: Decimal
+    token1Price: Decimal
 
     totalValueLockedToken0: Decimal
     totalValueLockedToken1: Decimal
     totalValueLockedETH: Decimal
     totalValueLockedUSD: Decimal
 
+    feesUSD: Decimal
+    untrackedVolumeUSD: Decimal
+    volumeToken0: Decimal
+    volumeToken1: Decimal
+
+    txCount: int
+
+
     @classmethod
     def from_mongo(cls, data: dict):
-        tick = data.get('tick')
-        if tick is not None:
-            tick = Decimal(convert_bigint_field(tick))
-            
+        # todo: fix in processor
+        liquidity = data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else data['liquidity']
         return cls(
             id=data['_id'],
+            token0=data['token0'],
+            token1=data['token1'],
             fee=data['fee'],
             tickSpacing=data['tickSpacing'],
             poolAddress=data['poolAddress'],
-            token0=data['token0'],
-            token1=data['token1'],
-            liquidity=data.get('liquidity', ZERO_DECIMAL128).to_decimal(),
-            sqrtPriceX96=data.get('sqrtPriceX96'),
-            tick=tick,
-            timestamp=data['timestamp'],
+            timestamp=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
-            totalValueLockedToken0=data.get('totalValueLockedToken0', ZERO_DECIMAL128).to_decimal(),
-            totalValueLockedToken1=data.get('totalValueLockedToken1', ZERO_DECIMAL128).to_decimal(),    
-            totalValueLockedETH=data.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal(),
-            totalValueLockedUSD=data.get('totalValueLockedUSD', ZERO_DECIMAL128).to_decimal(),
+            feeGrowthGlobal0X128=data['feeGrowthGlobal0X128'].to_decimal(),
+            feeGrowthGlobal1X128=data['feeGrowthGlobal1X128'].to_decimal(),
+            liquidity=liquidity,
+            tick=data['tick'],
+            sqrtPriceX96=data['sqrtPriceX96'],
+            token0Price=data['token0Price'].to_decimal(),
+            token1Price=data['token1Price'].to_decimal(),
+            totalValueLockedToken0=data['totalValueLockedToken0'].to_decimal(),
+            totalValueLockedToken1=data['totalValueLockedToken1'].to_decimal(),    
+            totalValueLockedETH=data['totalValueLockedETH'].to_decimal(),
+            totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
+            feesUSD=data.get('feesUSD', ZERO_DECIMAL128).to_decimal(),
+            untrackedVolumeUSD=data.get('untrackedVolumeUSD', ZERO_DECIMAL128).to_decimal(),
+            volumeToken0=data.get('volumeToken0', ZERO_DECIMAL128).to_decimal(),
+            volumeToken1=data.get('volumeToken1', ZERO_DECIMAL128).to_decimal(),
+            txCount=data.get('txCount', 0),
         )
 
 

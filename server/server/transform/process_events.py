@@ -15,7 +15,7 @@ from server.interval_updates import (
 )
 from server.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
 from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_latest_value
-from server.utils import to_decimal, convert_bigint_field
+from server.utils import to_decimal
 
 from pymongo import MongoClient, UpdateOne
 
@@ -88,7 +88,7 @@ def handle_initialize(*args, **kwargs):
 
     pool_update_data = {
         '$set': {
-            'sqrtPrice': record['sqrtPriceX96'],
+            'sqrtPriceX96': record['sqrtPriceX96'],
             'tick': record['tick'],
             'totalValueLockedETH': ZERO_DECIMAL128,
             'totalValueLockedUSD': ZERO_DECIMAL128,
@@ -99,6 +99,7 @@ def handle_initialize(*args, **kwargs):
             'token1Price': ZERO_DECIMAL128,
             'feeGrowthGlobal0X128': ZERO_DECIMAL128,
             'feeGrowthGlobal1X128': ZERO_DECIMAL128,
+            'txCount': 0,
         }
     }
 
@@ -144,6 +145,7 @@ def handle_mint(*args, **kwargs):
     token0_update_data['$set']['totalValueLockedUSD'] = Decimal128((token0['totalValueLocked'].to_decimal() + amount0) 
                                                                    * token0_derivedETH * EthPrice.get())
     token0_update_data['$inc']['totalValueLocked'] = Decimal128(amount0)
+    token0_update_data['$inc']['txCount'] = 1
 
     token1_update_data = dict()
     token1_update_data['$inc'] = dict()
@@ -151,8 +153,9 @@ def handle_mint(*args, **kwargs):
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128((token1['totalValueLocked'].to_decimal() + amount1) 
                                                                    * token1_derivedETH * EthPrice.get())
     token1_update_data['$inc']['totalValueLocked'] = Decimal128(amount1)
+    token1_update_data['$inc']['txCount'] = 1
 
-    pool_totalValueLockedETH = pool.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal()
+    pool_totalValueLockedETH = pool['totalValueLockedETH'].to_decimal()
     factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool_totalValueLockedETH
 
     pool_liquidity = Decimal(0)
@@ -160,8 +163,8 @@ def handle_mint(*args, **kwargs):
     if pool_tick is not None and record['tickLower'] <= pool_tick < record['tickUpper']:
         pool_liquidity = Decimal(record['amount'])
 
-    pool_totalValueLockedToken0 = pool.get('totalValueLockedToken0', ZERO_DECIMAL128).to_decimal()
-    pool_totalValueLockedToken1 = pool.get('pool_totalValueLockedToken1', ZERO_DECIMAL128).to_decimal()
+    pool_totalValueLockedToken0 = pool['totalValueLockedToken0'].to_decimal()
+    pool_totalValueLockedToken1 = pool['totalValueLockedToken1'].to_decimal()
     pool_totalValueLockedETH = ((pool_totalValueLockedToken0 + amount0) * token0_derivedETH) + (
         (pool_totalValueLockedToken1 + amount1) * token1_derivedETH)
     
@@ -173,6 +176,7 @@ def handle_mint(*args, **kwargs):
     pool_update_data["$inc"]["liquidity"] = Decimal128(pool_liquidity)
     pool_update_data["$inc"]['totalValueLockedToken0'] = Decimal128(amount0)
     pool_update_data["$inc"]['totalValueLockedToken1'] = Decimal128(amount1)
+    pool_update_data['$inc']['txCount'] = 1
 
     factory_update_data = dict()
     factory_update_data['$inc'] = dict()
@@ -216,6 +220,7 @@ def handle_burn(*args, **kwargs):
     token0_update_data['$set']['totalValueLockedUSD'] = Decimal128((token0['totalValueLocked'].to_decimal() - amount0) 
                                                                    * token0_derivedETH * EthPrice.get())
     token0_update_data['$inc']['totalValueLocked'] = Decimal128(-amount0)
+    token0_update_data['$inc']['txCount'] = 1
 
     token1_update_data = dict()
     token1_update_data['$inc'] = dict()
@@ -223,8 +228,9 @@ def handle_burn(*args, **kwargs):
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128((token1['totalValueLocked'].to_decimal() - amount1) 
                                                                    * token1_derivedETH * EthPrice.get())
     token1_update_data['$inc']['totalValueLocked'] = Decimal128(-amount1)
+    token1_update_data['$inc']['txCount'] = 1
 
-    pool_totalValueLockedETH = pool.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal()
+    pool_totalValueLockedETH = pool['totalValueLockedETH'].to_decimal()
     factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool_totalValueLockedETH
 
     pool_liquidity = Decimal(0)
@@ -232,8 +238,8 @@ def handle_burn(*args, **kwargs):
     if pool_tick is not None and record['tickLower'] <= pool_tick < record['tickUpper']:
         pool_liquidity = Decimal(-record['amount'])
 
-    pool_totalValueLockedToken0 = pool.get('totalValueLockedToken0', ZERO_DECIMAL128).to_decimal()
-    pool_totalValueLockedToken1 = pool.get('pool_totalValueLockedToken1', ZERO_DECIMAL128).to_decimal()
+    pool_totalValueLockedToken0 = pool['totalValueLockedToken0'].to_decimal()
+    pool_totalValueLockedToken1 = pool['totalValueLockedToken1'].to_decimal()
     pool_totalValueLockedETH = ((pool_totalValueLockedToken0 - amount0) * token0_derivedETH) + (
         (pool_totalValueLockedToken1 - amount1) * token1_derivedETH)
 
@@ -245,6 +251,7 @@ def handle_burn(*args, **kwargs):
     pool_update_data["$inc"]["liquidity"] = Decimal128(pool_liquidity)
     pool_update_data["$inc"]['totalValueLockedToken0'] = Decimal128(-amount0)
     pool_update_data["$inc"]['totalValueLockedToken1'] = Decimal128(-amount1)
+    pool_update_data['$inc']['txCount'] = 1
 
     factory_update_data = dict()
     factory_update_data['$inc'] = dict()
@@ -280,9 +287,8 @@ def handle_swap(*args, **kwargs):
     amount0 = to_decimal(record['amount0'], token0['decimals'])
     amount1 = to_decimal(record['amount1'], token1['decimals'])
 
+    # TODO
     old_tick = pool.get('tick')
-    if old_tick:
-        old_tick = convert_bigint_field(old_tick)
 
     token0_derivedETH = token0['derivedETH'].to_decimal()
     token1_derivedETH = token1['derivedETH'].to_decimal()
@@ -305,77 +311,79 @@ def handle_swap(*args, **kwargs):
     fees_USD = amount_total_USD_untracked * pool['fee'] / 1000000
 
     factory_update_data = dict()
-    factory_update_data['inc'] = dict()
-    factory_update_data['set'] = dict()
-    factory_update_data['inc']['txCount'] = 1
-    factory_update_data['inc']['totalVolumeETH'] = amount_total_ETH_tracked
-    factory_update_data['inc']['totalVolumeUSD'] = amount_total_USD_tracked
-    factory_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
-    factory_update_data['inc']['totalFeesETH'] = fees_ETH
-    factory_update_data['inc']['totalFeesUSD'] = fees_USD
+    factory_update_data['$inc'] = dict()
+    factory_update_data['$set'] = dict()
+    factory_update_data['$inc']['txCount'] = 1
+    factory_update_data['$inc']['totalVolumeETH'] = Decimal128(amount_total_ETH_tracked)
+    factory_update_data['$inc']['totalVolumeUSD'] = Decimal128(amount_total_USD_tracked)
+    factory_update_data['$inc']['untrackedVolumeUSD'] = Decimal128(amount_total_USD_untracked)
+    factory_update_data['$inc']['totalFeesETH'] = Decimal128(fees_ETH)
+    factory_update_data['$inc']['totalFeesUSD'] = Decimal128(fees_USD)
 
     pool_update_data = dict()
-    pool_update_data['inc'] = dict()
-    pool_update_data['set'] = dict()
-    pool_update_data['inc']['volumeToken0'] = amount0_abs
-    pool_update_data['inc']['volumeToken1'] = amount1_abs
-    pool_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
-    pool_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
-    pool_update_data['inc']['feesUSD'] = fees_USD
-    pool_update_data['inc']['txCount'] = 1
+    pool_update_data['$inc'] = dict()
+    pool_update_data['$set'] = dict()
+    pool_update_data['$inc']['volumeToken0'] = Decimal128(amount0_abs)
+    pool_update_data['$inc']['volumeToken1'] = Decimal128(amount1_abs)
+    pool_update_data['$inc']['volumeUSD'] = Decimal128(amount_total_USD_tracked)
+    pool_update_data['$inc']['untrackedVolumeUSD'] = Decimal128(amount_total_USD_untracked)
+    pool_update_data['$inc']['feesUSD'] = Decimal128(fees_USD)
+    pool_update_data['$inc']['txCount'] = 1
     
-    pool_update_data['set']['liquidity'] = record['liquidity']
-    pool_update_data['set']['tick'] = record['tick']
-    pool_update_data['set']['sqrt_price'] = record['sqrt_price_X96']
-    pool_totalValueLockedToken0 = pool['totalValueLockedToken0'] + amount0
-    pool_totalValueLockedToken1 = pool['totalValueLockedToken1'] + amount1
-    pool_update_data['set']['totalValueLockedToken0'] = pool_totalValueLockedToken0
-    pool_update_data['set']['totalValueLockedToken1'] = pool_totalValueLockedToken1
+    pool_update_data['$set']['liquidity'] = record['liquidity']
+    pool_update_data['$set']['tick'] = record['tick']
+    pool_update_data['$set']['sqrtPriceX96'] = record['sqrtPriceX96']
+    pool_totalValueLockedToken0 = pool['totalValueLockedToken0'].to_decimal() + amount0
+    pool_totalValueLockedToken1 = pool['totalValueLockedToken1'].to_decimal() + amount1
+    pool_update_data['$set']['totalValueLockedToken0'] = Decimal128(pool_totalValueLockedToken0)
+    pool_update_data['$set']['totalValueLockedToken1'] = Decimal128(pool_totalValueLockedToken1)
 
     token0_update_data = dict()
-    token0_update_data['inc'] = dict()
-    token0_update_data['set'] = dict()
-    token0_update_data['inc']['volume'] = amount0_abs
-    token0_totalValueLocked = token0['totalValueLocked'] + amount0
-    token0_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
-    token0_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
-    token0_update_data['inc']['feesUSD'] = fees_USD
-    token0_update_data['inc']['txCount'] = 1
+    token0_update_data['$inc'] = dict()
+    token0_update_data['$set'] = dict()
+    token0_update_data['$inc']['volume'] = Decimal128(amount0_abs)
+    token0_totalValueLocked = token0['totalValueLocked'].to_decimal() + amount0
+    token0_update_data['$inc']['volumeUSD'] = Decimal128(amount_total_USD_tracked)
+    token0_update_data['$inc']['untrackedVolumeUSD'] = Decimal128(amount_total_USD_untracked)
+    token0_update_data['$inc']['feesUSD'] = Decimal128(fees_USD)
+    token0_update_data['$inc']['txCount'] = 1
 
     token1_update_data = dict()
-    token1_update_data['inc'] = dict()
-    token1_update_data['set'] = dict()
-    token1_update_data['inc']['volume'] = amount1_abs
-    token1_totalValueLocked = token1['totalValueLocked'] + amount1
-    token1_update_data['inc']['volumeUSD'] = amount_total_USD_tracked
-    token1_update_data['inc']['untrackedVolumeUSD'] = amount_total_USD_untracked
-    token1_update_data['inc']['feesUSD'] = fees_USD
-    token1_update_data['inc']['txCount'] = 1
+    token1_update_data['$inc'] = dict()
+    token1_update_data['$set'] = dict()
+    token1_update_data['$inc']['volume'] = Decimal128(amount1_abs)
+    token1_totalValueLocked = token1['totalValueLocked'].to_decimal() + amount1
+    token1_update_data['$inc']['volumeUSD'] = Decimal128(amount_total_USD_tracked)
+    token1_update_data['$inc']['untrackedVolumeUSD'] = Decimal128(amount_total_USD_untracked)
+    token1_update_data['$inc']['feesUSD'] = Decimal128(fees_USD)
+    token1_update_data['$inc']['txCount'] = 1
 
-    prices = sqrt_price_X96_to_token_prices(record['sqrt_price_X96'], token0['decimals'], token1['decimals'])
-    pool_update_data['set']['token0Price'] = prices[0]
-    pool_update_data['set']['token1Price'] = prices[1]
+    prices = sqrt_price_x96_to_token_prices(record['sqrtPriceX96'], token0['decimals'], token1['decimals'])
+    pool_update_data['$set']['token0Price'] = Decimal128(prices[0])
+    pool_update_data['$set']['token1Price'] = Decimal128(prices[1])
 
     EthPrice.set(rpc_url)
 
-    token0_derivedETH = token0_update_data['set']['derivedETH'] = find_eth_per_token(token0)
-    token1_derivedETH = token1_update_data['set']['derivedETH'] = find_eth_per_token(token1)
+    token0_derivedETH = find_eth_per_token(db, token0)
+    token1_derivedETH = find_eth_per_token(db, token1)
+    token0_update_data['$set']['derivedETH'] = Decimal128(token0_derivedETH)
+    token1_update_data['$set']['derivedETH'] = Decimal128(token1_derivedETH)
     
-    factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal()
+    factory_totalValueLockedETH = factory['totalValueLockedETH'].to_decimal() - pool['totalValueLockedETH'].to_decimal()
 
     pool_totalValueLockedETH = (pool_totalValueLockedToken0 * token0_derivedETH) + (pool_totalValueLockedToken1 * token1_derivedETH)
-    pool_update_data['set']['totalValueLockedETH'] = pool_totalValueLockedETH
-    pool_update_data['set']['totalValueLockedUSD'] = pool_totalValueLockedETH * EthPrice.get()
+    pool_update_data['$set']['totalValueLockedETH'] = Decimal128(pool_totalValueLockedETH)
+    pool_update_data['$set']['totalValueLockedUSD'] = Decimal128(pool_totalValueLockedETH * EthPrice.get())
 
     factory_totalValueLockedETH = factory_totalValueLockedETH + pool_totalValueLockedETH
-    factory_update_data['set']['totalValueLockedETH'] = factory_totalValueLockedETH
-    factory_update_data['set']['totalValueLockedUSD'] = factory_totalValueLockedETH * EthPrice.get()
+    factory_update_data['$set']['totalValueLockedETH'] = Decimal128(factory_totalValueLockedETH)
+    factory_update_data['$set']['totalValueLockedUSD'] = Decimal128(factory_totalValueLockedETH * EthPrice.get())
 
-    token1_update_data['set']['totalValueLocked'] = token0_totalValueLocked
-    token1_update_data['set']['totalValueLockedUSD'] = token0_totalValueLocked * token0_derivedETH * EthPrice.get()
+    token1_update_data['$set']['totalValueLocked'] = Decimal128(token0_totalValueLocked)
+    token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token0_totalValueLocked * token0_derivedETH * EthPrice.get())
 
-    token1_update_data['set']['totalValueLocked'] = token1_totalValueLocked
-    token1_update_data['set']['totalValueLockedUSD'] = token1_totalValueLocked * token1_derivedETH * EthPrice.get()
+    token1_update_data['$set']['totalValueLocked'] = Decimal128(token1_totalValueLocked)
+    token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * EthPrice.get())
 
     # TODO Update fee growth
 
@@ -427,6 +435,10 @@ def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
     print(f'Successfully processed {EventTracker.mint_count} Mint events')
     print(f'Successfully processed {EventTracker.swap_count} Swap events')
     print(f'Successfully processed {EventTracker.burn_count} Burn events')
+    EventTracker.initialize_count = 0
+    EventTracker.mint_count = 0
+    EventTracker.swap_count = 0
+    EventTracker.burn_count = 0
 
 
 def run(mongo_url: str, mongo_database: Database, rpc_url: str):
