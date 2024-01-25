@@ -1,17 +1,6 @@
 version: '3.6'
 
 services:
-  mongo:
-    image: mongo:latest
-    restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: apibara
-      MONGO_INITDB_ROOT_PASSWORD: apibara
-    ports:
-      - 27017:27017
-    volumes:
-      - ./_docker/apibara_mongodb:/data/db
-
   etcd:
     image: docker.io/bitnami/etcd:3.5
     environment:
@@ -29,7 +18,6 @@ services:
       - /data/indexer/src/factory.ts
     depends_on:
       - etcd
-      - mongo
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: factory
@@ -45,7 +33,6 @@ services:
       - /data/indexer/src/nft_router.ts
     depends_on:
       - etcd
-      - mongo
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: nft_router
@@ -59,8 +46,6 @@ services:
     - init
     - --env-file
     - env_goerli
-    depends_on:
-      - mongo
     environment:
       PYTHONUNBUFFERED: "1"
 
@@ -73,7 +58,6 @@ services:
     - --env-file
     - env_goerli
     depends_on:
-      - mongo
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
@@ -87,7 +71,6 @@ services:
     - --env-file
     - env_goerli
     depends_on:
-      - mongo
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
@@ -104,7 +87,6 @@ services:
     - --env-file
     - env_goerli
     depends_on:
-      - mongo
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
