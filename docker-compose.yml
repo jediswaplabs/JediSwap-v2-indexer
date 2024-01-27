@@ -3,7 +3,7 @@ version: '3.6'
 services:
 
   factory:
-    image: quay.io/apibara/sink-mongo:0.5.2
+    image: quay.io/apibara/sink-mongo:0.5.3
     volumes:
       - ./:/data/
     command:
@@ -13,10 +13,10 @@ services:
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: factory
-      PERSIST_TO_REDIS: ${REDIS_URL}
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
 
   nft_router:
-    image: quay.io/apibara/sink-mongo:0.5.2
+    image: quay.io/apibara/sink-mongo:0.5.3
     volumes:
       - ./:/data/
     command:
@@ -26,7 +26,7 @@ services:
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: nft_router
-      PERSIST_TO_REDIS: ${REDIS_URL}
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
 
   init_db:
     build:
