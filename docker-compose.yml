@@ -1,12 +1,6 @@
 version: '3.6'
 
 services:
-  etcd:
-    image: docker.io/bitnami/etcd:3.5
-    environment:
-      ALLOW_NONE_AUTHENTICATION: "yes"
-    volumes:
-      - etcd_data:/bitnami/etcd
 
   factory:
     image: quay.io/apibara/sink-mongo:0.5.2
@@ -16,12 +10,10 @@ services:
       - run
       - --allow-env=/data/env_goerli
       - /data/indexer/src/factory.ts
-    depends_on:
-      - etcd
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: factory
-      PERSIST_TO_ETCD: http://etcd:2379
+      PERSIST_TO_REDIS: ${REDIS_URL}
 
   nft_router:
     image: quay.io/apibara/sink-mongo:0.5.2
@@ -31,12 +23,10 @@ services:
       - run
       - --allow-env=/data/env_goerli
       - /data/indexer/src/nft_router.ts
-    depends_on:
-      - etcd
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: nft_router
-      PERSIST_TO_ETCD: http://etcd:2379
+      PERSIST_TO_REDIS: ${REDIS_URL}
 
   init_db:
     build:
@@ -90,6 +80,3 @@ services:
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
-
-volumes:
-  etcd_data:

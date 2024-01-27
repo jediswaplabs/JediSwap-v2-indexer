@@ -58,4 +58,4 @@ ZERO_DECIMAL128 = Decimal128(Decimal(0))
 ZERO_DECIMAL = Decimal(0)
 
 DEFAULT_DECIMALS = 18
-TIME_INTERVAL = 300  # 5 minutes
+TIME_INTERVAL = 60  # in seconds
