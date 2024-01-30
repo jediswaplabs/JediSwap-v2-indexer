@@ -124,7 +124,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
     if not pool_hour_data_record:
         pool_hour_data_record = {
             'hourId': hour_id,
-            'periodStartUnix ': hour_start_timestamp,
+            'periodStartUnix': hour_start_timestamp,
             'poolAddress': pool_record['poolAddress'],
             'volumeToken0': ZERO_DECIMAL128,
             'volumeToken1': ZERO_DECIMAL128,
@@ -234,7 +234,7 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
     if not token_hour_data_record:
         token_hour_data_record = {
             'hourId': hour_id,
-            'periodStartUnix ': hour_start_timestamp,
+            'periodStartUnix': hour_start_timestamp,
             'tokenAddress': token_record['tokenAddress'],
             'volume': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,

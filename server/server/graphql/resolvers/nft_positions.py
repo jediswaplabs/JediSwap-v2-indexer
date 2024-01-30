@@ -1,3 +1,4 @@
+import datetime as dt
 from decimal import Decimal
 from typing import List, Optional
 
@@ -22,7 +23,7 @@ class NftPosition:
     withdrawnToken0: Decimal
     withdrawnToken1: Decimal
     liquidity: Decimal
-    timestamp: str
+    datetime: dt.datetime
     block: int
 
     @classmethod
@@ -36,7 +37,7 @@ class NftPosition:
             withdrawnToken0=to_decimal(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
             withdrawnToken1=to_decimal(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
             liquidity=Decimal(data.get('liquidity', 0)),
-            timestamp=convert_timestamp_to_datetime(data['timestamp']),
+            datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
         )
 

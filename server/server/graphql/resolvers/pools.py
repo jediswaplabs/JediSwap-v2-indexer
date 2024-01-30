@@ -1,12 +1,16 @@
-import datetime
+import datetime as dt
 from decimal import Decimal
 from typing import List, Optional
 
-from bson import Decimal128
 import strawberry
 from pymongo.database import Database
 
-from server.graphql.resolvers.helpers import BlockFilter, add_block_constraint, convert_timestamp_to_datetime
+from server.graphql.resolvers.helpers import (
+    BlockFilter, 
+    add_block_constraint, 
+    convert_timestamp_to_datetime,
+    get_liquidity_value
+)
 from server.const import Collection, ZERO_DECIMAL128
 from server.query_utils import filter_by_the_latest_value
 
@@ -21,7 +25,7 @@ class PoolCreated:
     tickSpacing: int
     poolAddress: str
  
-    timestamp: datetime.datetime
+    datetime: dt.datetime
     block: int
 
     feeGrowthGlobal0X128: Decimal
@@ -45,11 +49,8 @@ class PoolCreated:
 
     txCount: int
 
-
     @classmethod
     def from_mongo(cls, data: dict):
-        # todo: fix in processor
-        liquidity = data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else data['liquidity']
         return cls(
             id=data['_id'],
             token0=data['token0'],
@@ -57,11 +58,11 @@ class PoolCreated:
             fee=data['fee'],
             tickSpacing=data['tickSpacing'],
             poolAddress=data['poolAddress'],
-            timestamp=convert_timestamp_to_datetime(data['timestamp']),
+            datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
             feeGrowthGlobal0X128=data['feeGrowthGlobal0X128'].to_decimal(),
             feeGrowthGlobal1X128=data['feeGrowthGlobal1X128'].to_decimal(),
-            liquidity=liquidity,
+            liquidity=get_liquidity_value(data),
             tick=data['tick'],
             sqrtPriceX96=data['sqrtPriceX96'],
             token0Price=data['token0Price'].to_decimal(),

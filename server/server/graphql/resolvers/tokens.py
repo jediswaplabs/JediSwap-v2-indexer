@@ -1,12 +1,11 @@
 from decimal import Decimal
 from typing import List, Optional
-from dataclasses import field
 
 import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.graphql.resolvers.helpers import add_order_by_constraint
+from server.graphql.resolvers.helpers import add_order_by_constraint, WhereFilterForToken
 from server.const import Collection, ZERO_DECIMAL128
 
 
@@ -47,12 +46,6 @@ class Token:
         )
 
 
-@strawberry.input
-class WhereFilterForToken:
-    tokenAddress: Optional[str] = None
-    tokenAddress_in: Optional[List[str]] = field(default_factory=list)
-
-
 async def get_tokens(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
     orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForToken] = None
@@ -61,10 +54,10 @@ async def get_tokens(
     query = {}
 
     if where is not None:
-        if where.tokenAddress is not None:
-            query['tokenAddress'] = where.tokenAddress
-        if where.address_in:
-            token_in = [token for token in where.address_in]
+        if where.token_address is not None:
+            query['tokenAddress'] = where.token_address
+        if where.token_address_in:
+            token_in = [token for token in where.token_address_in]
             query['tokenAddress'] = {'$in': token_in}
 
     cursor = db[Collection.TOKENS].find(query, skip=skip, limit=first)
