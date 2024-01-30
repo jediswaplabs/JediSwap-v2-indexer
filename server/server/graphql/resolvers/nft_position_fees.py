@@ -1,3 +1,4 @@
+import datetime as dt
 from decimal import Decimal
 from typing import List, Optional
 
@@ -19,7 +20,7 @@ class NftPositionFee:
     ownerAddress: str
     collectedFeesToken0: Decimal
     collectedFeesToken1: Decimal
-    timestamp: str
+    datetime: dt.datetime
     block: int
 
     @classmethod
@@ -30,7 +31,7 @@ class NftPositionFee:
             ownerAddress=data['ownerAddress'],
             collectedFeesToken0=to_decimal(data.get('collectedFeesToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
             collectedFeesToken1=to_decimal(data.get('collectedFeesToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
-            timestamp=convert_timestamp_to_datetime(data['timestamp']),
+            datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
         )
 
