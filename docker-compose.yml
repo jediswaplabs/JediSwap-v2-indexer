@@ -1,0 +1,86 @@
+version: '3.6'
+
+services:
+
+  factory:
+    image: quay.io/apibara/sink-mongo:0.5.3
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_goerli
+      - /data/indexer/src/factory.ts
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: factory
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+
+  nft_router:
+    image: quay.io/apibara/sink-mongo:0.5.3
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_goerli
+      - /data/indexer/src/nft_router.ts
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: nft_router
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+
+  init_db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - init
+    - --env-file
+    - env_goerli
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
+
+  event_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - process
+    - --env-file
+    - env_goerli
+    depends_on:
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
+
+  position_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - positions
+    - --env-file
+    - env_goerli
+    depends_on:
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
+
+  graphql:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+    - 8000:8000
+    command:
+    - graphql
+    - --env-file
+    - env_goerli
+    depends_on:
+      - init_db
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
