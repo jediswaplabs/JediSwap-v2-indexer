@@ -44,7 +44,7 @@ class EthPrice:
             return 2000
 
 
-def find_eth_per_token(db: Database, token_addr: str) -> Decimal:
+def find_eth_per_token(db: Database, token_addr: str, rpc_url: str) -> Decimal:
     if token_addr == ETH:
         return Decimal(1)
       
@@ -57,7 +57,7 @@ def find_eth_per_token(db: Database, token_addr: str) -> Decimal:
         for pool_address in WHITELISTED_POOLS:
             pool = get_pool(db, pool_address)
             if pool and pool['liquidity'].to_decimal() > Decimal(0):
-                token0, token1 = get_tokens_from_pool(db, pool)
+                token0, token1 = get_tokens_from_pool(db, pool, rpc_url)
                 if pool['token0'] == token_addr:
                     eth_locked = pool['totalValueLockedToken1'].to_decimal() * token1['derivedETH'].to_decimal()
                     if eth_locked > largest_liquidity_eth & eth_locked > MINIMUM_ETH_LOCKED:

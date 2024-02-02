@@ -110,7 +110,7 @@ def handle_initialize(*args, **kwargs):
     logger.info("handle Initialize", **record)
 
     pool = get_pool(db, record['poolAddress'])
-    token0, token1 = get_tokens_from_pool(db, pool)
+    token0, token1 = get_tokens_from_pool(db, pool, rpc_url)
 
     pool_update_data = {
         '$set': {
@@ -139,12 +139,12 @@ def handle_initialize(*args, **kwargs):
 
     token0_update_data = {
         '$set': {
-            'derivedETH': Decimal128(find_eth_per_token(db, token0['tokenAddress'])),
+            'derivedETH': Decimal128(find_eth_per_token(db, token0['tokenAddress'], rpc_url)),
         }
     }
     token1_update_data = {
         '$set': {
-            'derivedETH': Decimal128(find_eth_per_token(db, token1['tokenAddress'])),
+            'derivedETH': Decimal128(find_eth_per_token(db, token1['tokenAddress'], rpc_url)),
         }
     }
     update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
@@ -155,13 +155,14 @@ def handle_initialize(*args, **kwargs):
 def handle_mint(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
     factory = get_factory_record(db)
 
     del record['event']
     logger.info("handle Mint", **record)
 
     pool = get_pool(db, record['poolAddress'])
-    token0, token1 = get_tokens_from_pool(db, pool)
+    token0, token1 = get_tokens_from_pool(db, pool, rpc_url)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
     amount1 = to_decimal(record['amount1'], token1['decimals'])
 
@@ -233,13 +234,14 @@ def handle_mint(*args, **kwargs):
 def handle_burn(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
     factory = get_factory_record(db)
 
     del record['event']
     logger.info("handle Burn", **record)
 
     pool = get_pool(db, record['poolAddress'])
-    token0, token1 = get_tokens_from_pool(db, pool)
+    token0, token1 = get_tokens_from_pool(db, pool, rpc_url)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
     amount1 = to_decimal(record['amount1'], token1['decimals'])
 
@@ -318,7 +320,7 @@ def handle_swap(*args, **kwargs):
     logger.info("handle Swap", **record)
 
     pool = get_pool(db, record['poolAddress'])
-    token0, token1 = get_tokens_from_pool(db, pool)
+    token0, token1 = get_tokens_from_pool(db, pool, rpc_url)
     amount0 = to_decimal(record['amount0'], token0['decimals'])
     amount1 = to_decimal(record['amount1'], token1['decimals'])
 
@@ -399,8 +401,8 @@ def handle_swap(*args, **kwargs):
 
     EthPrice.set(rpc_url)
 
-    token0_derivedETH = find_eth_per_token(db, token0)
-    token1_derivedETH = find_eth_per_token(db, token1)
+    token0_derivedETH = find_eth_per_token(db, token0, rpc_url)
+    token1_derivedETH = find_eth_per_token(db, token1, rpc_url)
     token0_update_data['$set']['derivedETH'] = Decimal128(token0_derivedETH)
     token1_update_data['$set']['derivedETH'] = Decimal128(token1_derivedETH)
     

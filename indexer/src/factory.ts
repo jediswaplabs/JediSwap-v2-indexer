@@ -1,6 +1,6 @@
 import {
   Block,
-  EventWithTransaction,
+  EventWithTransaction
 } from "../common/deps.ts";
 import {
   COLLECTION_NAMES,
@@ -13,7 +13,7 @@ import {
   EVENTS,
 } from "../common/constants.ts";
 import {
-  formatFelt
+  formatFelt, formatI256, formatU256, formatI32
 } from "../common/utils.ts";
 
 const filter = {
@@ -94,8 +94,8 @@ export default function transform({ header, events }: Block) {
       case SELECTOR_KEYS.INITIALIZE: {
         const data = {
           event: EVENTS.INITIALIZE,
-          sqrtPriceX96: Number(event.data[0]),
-          tick: Number(event.data[2]),
+          sqrtPriceX96: formatU256(event.data[0], event.data[1]),
+          tick: formatI32(event.data[2], event.data[3]),
           ...txMeta,
         }
         return {
@@ -108,11 +108,11 @@ export default function transform({ header, events }: Block) {
           event: EVENTS.MINT,
           sender: formatFelt(event.data[0]),
           owner: formatFelt(event.data[1]),
-          tickLower: Number(event.data[2]),
-          tickUpper: Number(event.data[4]),
+          tickLower: formatI32(event.data[2], event.data[3]),
+          tickUpper: formatI32(event.data[4], event.data[4]),
           amount: Number(event.data[6]),
-          amount0: Number(event.data[7]),
-          amount1: Number(event.data[9]),
+          amount0: formatU256(event.data[7], event.data[8]),
+          amount1: formatU256(event.data[9], event.data[10]),
           ...txMeta,
         }
         return {
@@ -124,11 +124,11 @@ export default function transform({ header, events }: Block) {
         const data = {
           event: EVENTS.BURN,
           owner: formatFelt(event.data[0]),
-          tickLower: Number(event.data[1]),
-          tickUpper: Number(event.data[3]),
+          tickLower: formatI32(event.data[1], event.data[2]),
+          tickUpper: formatI32(event.data[3], event.data[4]),
           amount: Number(event.data[5]),
-          amount0: Number(event.data[6]),
-          amount1: Number(event.data[8]),
+          amount0: formatU256(event.data[6], event.data[7]),
+          amount1: formatU256(event.data[8], event.data[9]),
           ...txMeta,
         }
         return {
@@ -141,11 +141,11 @@ export default function transform({ header, events }: Block) {
           event: EVENTS.SWAP,
           sender: formatFelt(event.data[0]),
           recipient: formatFelt(event.data[1]),
-          amount0: Number(event.data[2]),
-          amount1: Number(event.data[5]),
-          sqrtPriceX96: Number(event.data[8]),
+          amount0: formatI256(event.data[2], event.data[3], event.data[4]),
+          amount1: formatI256(event.data[5], event.data[6], event.data[7]),
+          sqrtPriceX96: formatU256(event.data[8], event.data[9]),
           liquidity: Number(event.data[10]),
-          tick: Number(event.data[11]),
+          tick: formatI32(event.data[11], event.data[12]),
           ...txMeta,
         }
         return {
@@ -158,8 +158,8 @@ export default function transform({ header, events }: Block) {
           event: EVENTS.COLLECT,
           owner: formatFelt(event.data[0]),
           recipient: formatFelt(event.data[1]),
-          tickLower: Number(event.data[2]),
-          tickUpper: Number(event.data[4]),
+          tickLower: formatI32(event.data[2], event.data[3]),
+          tickUpper: formatI32(event.data[4], event.data[5]),
           amount0: Number(event.data[6]),
           amount1: Number(event.data[7]),
           ...txMeta,

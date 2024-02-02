@@ -12,7 +12,7 @@ import {
     STREAM_URL,
   } from "../common/constants.ts";
   import {
-    formatFelt
+    formatFelt, formatU256
   } from "../common/utils.ts";
   
   const filter = {
@@ -82,10 +82,10 @@ import {
           };
         }
         case SELECTOR_KEYS.INCREASE_LIQUIDITY: {
-          const positionId = Number(event.data[0]);
+          const positionId = formatU256(event.data[0], event.data[1]);
           const liquidity = Number(event.data[2]);
-          const amount0 = Number(event.data[3]);
-          const amount1 = Number(event.data[5]);
+          const amount0 = formatU256(event.data[3], event.data[4]);
+          const amount1 = formatU256(event.data[5], event.data[6]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITIONS,
@@ -103,10 +103,10 @@ import {
           };
         };
         case SELECTOR_KEYS.DECREASE_LIQUIDITY: {
-          const positionId = Number(event.data[0]);
+          const positionId = formatU256(event.data[0], event.data[1]);
           const liquidity = Number(event.data[2]);
-          const amount0 = Number(event.data[3]);
-          const amount1 = Number(event.data[5]);
+          const amount0 = formatU256(event.data[3], event.data[4]);
+          const amount1 = formatU256(event.data[5], event.data[6]);
           return {
             entity: { positionId },
             collection: COLLECTION_NAMES.POSITIONS,
@@ -124,7 +124,7 @@ import {
           };
         };
         case SELECTOR_KEYS.COLLECT: {
-          const positionId = Number(event.data[0]);
+          const positionId = formatU256(event.data[0], event.data[1]);
           const ownerAddress = formatFelt(event.data[2]);
           const amount0_collect = Number(event.data[3]);
           const amount1_collect = Number(event.data[4]);

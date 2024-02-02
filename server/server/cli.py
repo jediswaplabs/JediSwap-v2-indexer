@@ -6,7 +6,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from server.graphql.main import run as graphql_run
-from server.transform.init_db import run as init_run
 from server.transform.process_events import run as process_run
 from server.transform.process_positions import run as positions_run
 
@@ -37,8 +36,6 @@ def run():
     if rpc_url is None:
         sys.exit('RPC_URL not set')
 
-    if args.action == 'init':
-        init_run(mongo_url, mongo_database, rpc_url)
     elif args.action == 'process':
         process_run(mongo_url, mongo_database, rpc_url)
     elif args.action == 'graphql':
