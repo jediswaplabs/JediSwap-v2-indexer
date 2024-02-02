@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import datetime
 
 from bson import Decimal128
 from pymongo.database import Database
@@ -10,28 +11,28 @@ from pymongo import UpdateOne
 
 
 def get_day_id(timestamp: str) -> tuple[int, int]:
-    day_id = int(timestamp) // 86400
-    day_start_timestamp = day_id * 86400
-    return day_id, day_start_timestamp
+    day_id = int(timestamp) // 86400000
+    day_start = datetime.fromtimestamp(day_id * 86400)
+    return day_id, day_start
 
 
 def get_hour_id(timestamp: str) -> tuple[int, int]:
-    hour_id = int(timestamp) // 3600
-    hour_start_timestamp = hour_id * 3600
-    return hour_id, hour_start_timestamp
+    hour_id = int(timestamp) // 3600000
+    hour_start = datetime.fromtimestamp(hour_id * 3600)
+    return hour_id, hour_start
 
 
 def update_factory_day_data(db: Database, factory_record: dict, timestamp: str, 
                             amount_total_ETH_tracked: Decimal = ZERO_DECIMAL, 
                             amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                             fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start_timestamp = get_day_id(timestamp)
+    day_id, day_start = get_day_id(timestamp)
 
     factory_day_data_record = db[Collection.FACTORIES_DAY_DATA].find_one({'dayId': day_id})
     if not factory_day_data_record:
         factory_day_data_record = {
             'dayId': day_id,
-            'date': day_start_timestamp,
+            'date': day_start,
             'volumeETH': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
@@ -56,7 +57,7 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str,
                          amount0_abs: Decimal = ZERO_DECIMAL, 
                          amount1_abs: Decimal = ZERO_DECIMAL, 
                          fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start_timestamp = get_day_id(timestamp)
+    day_id, day_start = get_day_id(timestamp)
 
     pool_day_data_record = db[Collection.POOLS_DAY_DATA].find_one({
         'poolAddress': pool_record['poolAddress'],
@@ -65,19 +66,16 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str,
     if not pool_day_data_record:
         pool_day_data_record = {
             'dayId': day_id,
-            'date': day_start_timestamp,
+            'date': day_start,
             'poolAddress': pool_record['poolAddress'],
             'volumeToken0': ZERO_DECIMAL128,
             'volumeToken1': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
             'txCount': 0,
-            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
-            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
             'open': pool_record['token0Price'],
             'high': pool_record['token0Price'],
-            'low': pool_record['token0Price'],
-            'close': pool_record['token0Price'],
+            'low': pool_record['token0Price']
         }
 
     if pool_record['token0Price'].to_decimal() > pool_day_data_record['high'].to_decimal():
@@ -95,6 +93,7 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str,
     pool_day_data_record['tick'] = pool_record['tick']
     pool_day_data_record['totalValueLockedUSD'] = pool_record['totalValueLockedUSD']
     pool_day_data_record['txCount'] += 1
+    pool_day_data_record['close'] = pool_record['token0Price']
     pool_day_data_record['volumeUSD'] = Decimal128(pool_day_data_record['volumeUSD'].to_decimal() + amount_total_USD_tracked)
     pool_day_data_record['volumeToken0'] = Decimal128(pool_day_data_record['volumeToken0'].to_decimal() + amount0_abs)
     pool_day_data_record['volumeToken1'] = Decimal128(pool_day_data_record['volumeToken1'].to_decimal() + amount1_abs)
@@ -115,7 +114,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
                           amount0_abs: Decimal = ZERO_DECIMAL, 
                           amount1_abs: Decimal = ZERO_DECIMAL, 
                           fees_USD: Decimal = ZERO_DECIMAL):
-    hour_id, hour_start_timestamp = get_hour_id(timestamp)
+    hour_id, hour_start = get_hour_id(timestamp)
 
     pool_hour_data_record = db[Collection.POOLS_HOUR_DATA].find_one({
         'poolAddress': pool_record['poolAddress'],
@@ -124,7 +123,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
     if not pool_hour_data_record:
         pool_hour_data_record = {
             'hourId': hour_id,
-            'periodStartUnix': hour_start_timestamp,
+            'periodStartUnix': hour_start,
             'poolAddress': pool_record['poolAddress'],
             'volumeToken0': ZERO_DECIMAL128,
             'volumeToken1': ZERO_DECIMAL128,
@@ -135,8 +134,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
             'feeGrowthGlobal1X128': ZERO_DECIMAL128,
             'open': pool_record['token0Price'],
             'high': pool_record['token0Price'],
-            'low': pool_record['token0Price'],
-            'close': pool_record['token0Price'],
+            'low': pool_record['token0Price']
         }
 
     if pool_record['token0Price'].to_decimal() > pool_hour_data_record['high'].to_decimal():
@@ -154,6 +152,7 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
     pool_hour_data_record['tick'] = pool_record['tick']
     pool_hour_data_record['totalValueLockedUSD'] = pool_record['totalValueLockedUSD']
     pool_hour_data_record['txCount'] += 1
+    pool_hour_data_record['close'] = pool_record['token0Price']
     pool_hour_data_record['volumeUSD'] = Decimal128(pool_hour_data_record['volumeUSD'].to_decimal() + amount_total_USD_tracked)
     pool_hour_data_record['volumeToken0'] = Decimal128(pool_hour_data_record['volumeToken0'].to_decimal() + amount0_abs)
     pool_hour_data_record['volumeToken1'] = Decimal128(pool_hour_data_record['volumeToken1'].to_decimal() + amount1_abs)
@@ -173,7 +172,7 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
                           amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                           amount_abs: Decimal = ZERO_DECIMAL, 
                           fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start_timestamp = get_day_id(timestamp)
+    day_id, day_start = get_day_id(timestamp)
     token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
 
     token_day_data_record = db[Collection.TOKENS_DAY_DATA].find_one({
@@ -183,7 +182,7 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
     if not token_day_data_record:
         token_day_data_record = {
             'dayId': day_id,
-            'date': day_start_timestamp,
+            'date': day_start,
             'tokenAddress': token_record['tokenAddress'],
             'volume': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
@@ -191,8 +190,7 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
             'untrackedVolumeUSD': ZERO_DECIMAL128,
             'open': Decimal128(token_price),
             'high': Decimal128(token_price),
-            'low': Decimal128(token_price),
-            'close': Decimal128(token_price),
+            'low': Decimal128(token_price)
         }
 
     if token_price > token_day_data_record['high'].to_decimal():
@@ -224,7 +222,7 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
                            amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                            amount_abs: Decimal = ZERO_DECIMAL, 
                            fees_USD: Decimal = ZERO_DECIMAL):
-    hour_id, hour_start_timestamp = get_hour_id(timestamp)
+    hour_id, hour_start = get_hour_id(timestamp)
     token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
 
     token_hour_data_record = db[Collection.TOKENS_HOUR_DATA].find_one({
@@ -234,7 +232,7 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
     if not token_hour_data_record:
         token_hour_data_record = {
             'hourId': hour_id,
-            'periodStartUnix': hour_start_timestamp,
+            'periodStartUnix': hour_start,
             'tokenAddress': token_record['tokenAddress'],
             'volume': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
@@ -242,8 +240,7 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
             'untrackedVolumeUSD': ZERO_DECIMAL128,
             'open': Decimal128(token_price),
             'high': Decimal128(token_price),
-            'low': Decimal128(token_price),
-            'close': Decimal128(token_price),
+            'low': Decimal128(token_price)
         }
 
     if token_price > token_hour_data_record['high'].to_decimal():

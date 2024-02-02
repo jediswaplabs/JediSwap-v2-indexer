@@ -76,6 +76,7 @@ poetry run server graphql
 
 ```
 export AUTH_TOKEN=<your_apibara_key>
+export RPC_URL=<your_rpc_url>
 ```
 
 4. Run `docker-compose.yml` or `docker-compose.prod.yml`

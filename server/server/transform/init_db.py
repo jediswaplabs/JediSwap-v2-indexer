@@ -63,9 +63,3 @@ def run(mongo_url: str, mongo_database: Database, rpc_url: str):
                 print(f'Token will be inserted {token["name"]}')
         if tokens_to_add:
             tokens_collection.insert_many(tokens_to_add)
-
-        # add factory
-        existing_factory_record = factory_collection.find_one({'address': FACTORY_ADDRESS})
-        if existing_factory_record is None:
-            factory_collection.insert_one(FACTORY_RECORD)
-            print('Factory record inserted')

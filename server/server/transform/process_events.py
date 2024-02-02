@@ -21,6 +21,9 @@ from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_lat
 from server.utils import to_decimal
 
 from pymongo import MongoClient, UpdateOne
+from structlog import get_logger
+
+logger = get_logger(__name__)
 
 
 class Event:
@@ -53,7 +56,8 @@ def update_pool_record(db: Database, pool_id: str, pool_update_data: dict):
 
 
 def update_factory_record(db: Database, factory_update_data: dict):
-    db[Collection.FACTORIES].update_one({'address': FACTORY_ADDRESS}, factory_update_data)
+    factory_collection = db[Collection.FACTORIES]
+    factory_collection.update_one({'address': FACTORY_ADDRESS}, factory_update_data)
 
 
 def yield_pool_data_records(db: Database) -> dict:
@@ -78,13 +82,32 @@ def yield_pool_data_records(db: Database) -> dict:
 
 
 def get_factory_record(db: Database) -> dict:
-    return db[Collection.FACTORIES].find_one({'address': FACTORY_ADDRESS})
+    factory_collection = db[Collection.FACTORIES]
+    existing_factory_record = factory_collection.find_one({'address': FACTORY_ADDRESS})
+    if existing_factory_record is None:
+        FACTORY_RECORD = {
+            'address': FACTORY_ADDRESS,
+            'txCount': 0,
+            'totalValueLockedETH': ZERO_DECIMAL128,
+            'totalValueLockedUSD': ZERO_DECIMAL128,
+            'totalVolumeETH': ZERO_DECIMAL128,
+            'totalVolumeUSD': ZERO_DECIMAL128,
+            'untrackedVolumeUSD': ZERO_DECIMAL128,
+            'totalFeesETH': ZERO_DECIMAL128,
+            'totalFeesUSD': ZERO_DECIMAL128,
+        }
+        factory_collection.insert_one(FACTORY_RECORD)
+        return FACTORY_RECORD
+    return existing_factory_record
 
 
 def handle_initialize(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
     rpc_url = kwargs['rpc_url']
+
+    del record['event']
+    logger.info("handle Initialize", **record)
 
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
@@ -132,7 +155,10 @@ def handle_initialize(*args, **kwargs):
 def handle_mint(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
-    factory = kwargs['factory']
+    factory = get_factory_record(db)
+
+    del record['event']
+    logger.info("handle Mint", **record)
 
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
@@ -189,6 +215,10 @@ def handle_mint(*args, **kwargs):
     factory_update_data['$set']['totalValueLockedETH'] = Decimal128(factory_totalValueLockedETH + pool_totalValueLockedETH)
     factory_update_data['$inc']['txCount'] = 1
 
+    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
+    update_pool_record(db, pool['_id'], pool_update_data)
+    update_factory_record(db, factory_update_data)
+    
     update_factory_day_data(db, factory, record['timestamp'])
     update_pool_day_data(db, pool, record['timestamp'])
     update_pool_hour_data(db, pool, record['timestamp'])
@@ -197,17 +227,16 @@ def handle_mint(*args, **kwargs):
     update_token_day_data(db, token1, record['timestamp'])
     update_token_hour_data(db, token1, record['timestamp'])
 
-    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
-    update_pool_record(db, pool['_id'], pool_update_data)
-    update_factory_record(db, factory_update_data)
-
     EventTracker.mint_count += 1
 
 
 def handle_burn(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
-    factory = kwargs['factory']
+    factory = get_factory_record(db)
+
+    del record['event']
+    logger.info("handle Burn", **record)
 
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
@@ -264,6 +293,10 @@ def handle_burn(*args, **kwargs):
     factory_update_data['$set']['totalValueLockedETH'] = Decimal128(factory_totalValueLockedETH + pool_totalValueLockedETH)
     factory_update_data['$inc']['txCount'] = 1
 
+    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
+    update_pool_record(db, pool['_id'], pool_update_data)
+    update_factory_record(db, factory_update_data)
+    
     update_factory_day_data(db, factory, record['timestamp'])
     update_pool_day_data(db, pool, record['timestamp'])
     update_pool_hour_data(db, pool, record['timestamp'])
@@ -272,18 +305,17 @@ def handle_burn(*args, **kwargs):
     update_token_day_data(db, token1, record['timestamp'])
     update_token_hour_data(db, token1, record['timestamp'])
 
-    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
-    update_pool_record(db, pool['_id'], pool_update_data)
-    update_factory_record(db, factory_update_data)
-
     EventTracker.burn_count += 1
 
 
 def handle_swap(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
-    factory = kwargs['factory']
+    factory = get_factory_record(db)
     rpc_url = kwargs['rpc_url']
+
+    del record['event']
+    logger.info("handle Swap", **record)
 
     pool = get_pool(db, record['poolAddress'])
     token0, token1 = get_tokens_from_pool(db, pool)
@@ -389,13 +421,17 @@ def handle_swap(*args, **kwargs):
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * EthPrice.get())
 
     # TODO Update fee growth
-    contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
-    if contract is not None:
-        (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()
-        pool_update_data['$set']['feeGrowthGlobal0X128'] = Decimal128(fee_growth_global_0_X128)
-        (fee_growth_global_1_X128,) = contract.functions["get_fee_growth_global_1_X128"].call_sync()
-        pool_update_data['$set']['feeGrowthGlobal1X128'] = Decimal128(fee_growth_global_1_X128)
+    # contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
+    # if contract is not None:
+    #     (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()
+    #     pool_update_data['$set']['feeGrowthGlobal0X128'] = Decimal128(fee_growth_global_0_X128)
+    #     (fee_growth_global_1_X128,) = contract.functions["get_fee_growth_global_1_X128"].call_sync()
+    #     pool_update_data['$set']['feeGrowthGlobal1X128'] = Decimal128(fee_growth_global_1_X128)
 
+    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
+    update_pool_record(db, pool['_id'], pool_update_data)
+    update_factory_record(db, factory_update_data)
+    
     update_factory_day_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
     update_pool_day_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
     update_pool_hour_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
@@ -403,10 +439,6 @@ def handle_swap(*args, **kwargs):
     update_token_hour_data(db, token0, record['timestamp'], amount_total_USD_tracked, amount0_abs, fees_USD)
     update_token_day_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
     update_token_hour_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
-
-    update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
-    update_pool_record(db, pool['_id'], pool_update_data)
-    update_factory_record(db, factory_update_data)
     
     EventTracker.swap_count += 1
 
@@ -428,11 +460,9 @@ def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
         for record in yield_pool_data_records(db):
             event_func = EVENT_TO_FUNCTION_MAP.get(record['event'])
             if event_func:
-                factory = get_factory_record(db)
                 event_func(
                     db=db, 
-                    record=record, 
-                    factory=factory, 
+                    record=record,
                     rpc_url=rpc_url)
                 processed_records.append(
                     UpdateOne({"_id": record['_id']}, {"$set": {"processed": True}})
@@ -440,13 +470,14 @@ def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
         if processed_records:
             db[Collection.POOLS_DATA].bulk_write(processed_records)
 
-    print(f'Successfully processed {EventTracker.initialize_count} Initialize events')
-    print(f'Successfully processed {EventTracker.mint_count} Mint events')
-    print(f'Successfully processed {EventTracker.swap_count} Swap events')
-    print(f'Successfully processed {EventTracker.burn_count} Burn events')
+    logger.info(f'Successfully processed {EventTracker.initialize_count} Initialize events')
+    logger.info(f'Successfully processed {EventTracker.mint_count} Mint events')
+    logger.info(f'Successfully processed {EventTracker.swap_count} Swap events')
+    logger.info(f'Successfully processed {EventTracker.burn_count} Burn events')
     EventTracker.initialize_count = 0
     EventTracker.mint_count = 0
     EventTracker.swap_count = 0
+
     EventTracker.burn_count = 0
 
 

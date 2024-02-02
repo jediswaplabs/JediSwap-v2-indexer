@@ -4,9 +4,13 @@ from pymongo.database import Database
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL
+from server.const import os, ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL
 from server.query_utils import get_pool, get_tokens_from_pool
 from server.utils import exponent_to_decimal, safe_div
+
+from structlog import get_logger
+
+logger = get_logger(__name__)
 
 
 Q192 = Decimal(2 ** 192)
@@ -26,14 +30,18 @@ class EthPrice:
     
     @staticmethod
     def get_eth_price(rpc_url: str) -> Decimal:
-        contract = Contract.from_address_sync(
-            address=ETH_USDC_ADDRESS,
-            provider=FullNodeClient(node_url=rpc_url),
-        )
-        if contract is not None:
-            (value,) = contract.functions["get_token1"].call_sync()
-            return Decimal(value)
-        return Decimal(0)
+        ## TODO correctly
+        if os.environ.get('NETWORK') == 'mainnet':
+            contract = Contract.from_address_sync(
+                address=ETH_USDC_ADDRESS,
+                provider=FullNodeClient(node_url=rpc_url),
+            )
+            if contract is not None:
+                (value,) = contract.functions["get_token1"].call_sync()
+                return Decimal(value)
+            return Decimal(0)
+        else:
+            return 2000
 
 
 def find_eth_per_token(db: Database, token_addr: str) -> Decimal:

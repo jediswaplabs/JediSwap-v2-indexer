@@ -38,6 +38,7 @@ services:
     - env_goerli
     environment:
       PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
 
   event_processor:
     build:
@@ -51,6 +52,7 @@ services:
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
 
   position_processor:
     build:
@@ -64,6 +66,7 @@ services:
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
 
   graphql:
     build:
@@ -80,3 +83,4 @@ services:
       - init_db
     environment:
       PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
