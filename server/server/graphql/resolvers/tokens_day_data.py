@@ -8,7 +8,6 @@ from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import (
     add_order_by_constraint, 
-    convert_timestamp_to_datetime, 
     WhereFilterForToken, 
     filter_by_token_address
 )
@@ -49,7 +48,7 @@ class TokenDayData:
             feesUSD=data['feesUSD'].to_decimal(),
             priceUSD=data['priceUSD'].to_decimal(),
             dayId=data['dayId'],
-            datetime=convert_timestamp_to_datetime(data['date']),
+            datetime=data['date'],
             totalValueLocked=data['totalValueLocked'].to_decimal(),
             totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
             untrackedVolumeUSD=data['untrackedVolumeUSD'].to_decimal(),
