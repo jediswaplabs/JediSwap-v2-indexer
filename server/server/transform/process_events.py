@@ -5,6 +5,9 @@ from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
+from starknet_py.contract import Contract
+from starknet_py.net.full_node_client import FullNodeClient
+
 from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, TIME_INTERVAL
 from server.interval_updates import (
     update_factory_day_data,
@@ -386,6 +389,12 @@ def handle_swap(*args, **kwargs):
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * EthPrice.get())
 
     # TODO Update fee growth
+    contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
+    if contract is not None:
+        (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()
+        pool_update_data['$set']['feeGrowthGlobal0X128'] = Decimal128(fee_growth_global_0_X128)
+        (fee_growth_global_1_X128,) = contract.functions["get_fee_growth_global_1_X128"].call_sync()
+        pool_update_data['$set']['feeGrowthGlobal1X128'] = Decimal128(fee_growth_global_1_X128)
 
     update_factory_day_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
     update_pool_day_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
