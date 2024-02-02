@@ -123,8 +123,8 @@ def handle_initialize(*args, **kwargs):
             'liquidity': ZERO_DECIMAL128,
             'token0Price': ZERO_DECIMAL128,
             'token1Price': ZERO_DECIMAL128,
-            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
-            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
+            'feeGrowthGlobal0X128': '0x0',
+            'feeGrowthGlobal1X128': '0x0',
             'txCount': 0,
         }
     }
@@ -423,12 +423,12 @@ def handle_swap(*args, **kwargs):
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * EthPrice.get())
 
     # TODO Update fee growth
-    # contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
-    # if contract is not None:
-    #     (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()
-    #     pool_update_data['$set']['feeGrowthGlobal0X128'] = Decimal128(fee_growth_global_0_X128)
-    #     (fee_growth_global_1_X128,) = contract.functions["get_fee_growth_global_1_X128"].call_sync()
-    #     pool_update_data['$set']['feeGrowthGlobal1X128'] = Decimal128(fee_growth_global_1_X128)
+    contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
+    if contract is not None:
+        (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()
+        pool_update_data['$set']['feeGrowthGlobal0X128'] = hex(fee_growth_global_0_X128)
+        (fee_growth_global_1_X128,) = contract.functions["get_fee_growth_global_1_X128"].call_sync()
+        pool_update_data['$set']['feeGrowthGlobal1X128'] = hex(fee_growth_global_1_X128)
 
     update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
     update_pool_record(db, pool['_id'], pool_update_data)

@@ -130,8 +130,6 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
             'txCount': 0,
-            'feeGrowthGlobal0X128': ZERO_DECIMAL128,
-            'feeGrowthGlobal1X128': ZERO_DECIMAL128,
             'open': pool_record['token0Price'],
             'high': pool_record['token0Price'],
             'low': pool_record['token0Price']

@@ -8,7 +8,6 @@ from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import (
     add_order_by_constraint, 
-    convert_timestamp_to_datetime, 
 )
 from server.const import Collection
 
@@ -32,7 +31,7 @@ class FactoryDayData:
         return cls(
             id=data['_id'],
             dayId=data['dayId'],
-            datetime=convert_timestamp_to_datetime(data['date']),
+            datetime=data['date'],
             feesUSD=data['feesUSD'].to_decimal(),
             totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
             volumeETH=data['volumeETH'].to_decimal(),

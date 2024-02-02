@@ -7,8 +7,7 @@ from pymongo.database import Database
 from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import (
-    add_order_by_constraint, 
-    convert_timestamp_to_datetime, 
+    add_order_by_constraint,
     WhereFilterForPool, 
     filter_by_pool_address,
     get_liquidity_value
@@ -57,12 +56,12 @@ class PoolDayData:
             low=data['low'].to_decimal(),
             feesUSD=data['feesUSD'].to_decimal(),
             liquidity=get_liquidity_value(data),
-            feeGrowthGlobal0X128=data['feeGrowthGlobal0X128'].to_decimal(),
-            feeGrowthGlobal1X128=data['feeGrowthGlobal1X128'].to_decimal(),
+            feeGrowthGlobal0X128=Decimal(int(data['feeGrowthGlobal0X128'], 16)),
+            feeGrowthGlobal1X128=Decimal(int(data['feeGrowthGlobal1X128'], 16)),
             sqrtPriceX96=data['sqrtPriceX96'],
             tick=data['tick'],
             dayId=data['dayId'],
-            datetime=convert_timestamp_to_datetime(data['date']),
+            datetime=data['date'],
             token0Price=data['token0Price'].to_decimal(),
             token1Price=data['token1Price'].to_decimal(),
             totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
