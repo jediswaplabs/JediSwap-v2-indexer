@@ -1,5 +1,5 @@
 from dataclasses import field
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional, TypeVar, Generic, List
 
@@ -85,9 +85,15 @@ def filter_by_pool_address(where: WhereFilterForPool, query: dict):
         query['poolAddress'] = {'$in': token_in}
 
 
+def filter_by_last_seven_days(query: dict):
+    from_datestamp = datetime.now() - timedelta(days=7)
+    from_timestamp = int(from_datestamp.timestamp() * 1000)
+    query['date'] = {'$gt': from_timestamp}
+
+
 def convert_timestamp_to_datetime(timestamp: float):
     return datetime.fromtimestamp(timestamp / 1e3)
 
 
 def get_liquidity_value(data: dict) -> Decimal:
-    return data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else data['liquidity']
+    return data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else Decimal(data['liquidity'])
