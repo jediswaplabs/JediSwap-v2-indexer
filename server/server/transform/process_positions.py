@@ -7,7 +7,11 @@ from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
 from server.const import Collection, NFT_ROUTER, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
-from server.query_utils import filter_by_the_latest_value
+from server.query_utils import filter_by_the_latest_value, get_token
+
+from structlog import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_tokens_decimals_from_position(db: Database, rpc_url: str, position_id: int) -> tuple[int, int]:
@@ -21,9 +25,8 @@ def get_tokens_decimals_from_position(db: Database, rpc_url: str, position_id: i
         token0_address = hex(result[1]['token0'])
         token1_address = hex(result[1]['token1'])
 
-        tokens_collection = db[Collection.TOKENS]
-        token0 = tokens_collection.find_one({'tokenAddress': token0_address})
-        token1 = tokens_collection.find_one({'tokenAddress': token1_address})
+        token0 = get_token(db, token0_address, rpc_url)
+        token1 = get_token(db, token1_address, rpc_url)
         return token0['decimals'], token1['decimals']
     
     return DEFAULT_DECIMALS, DEFAULT_DECIMALS
@@ -57,7 +60,7 @@ def handle_positions(db: Database, rpc_url: str):
 
     if positions_update_operations:
         db[Collection.POSITIONS].bulk_write(positions_update_operations)
-    print(f'Successfully processed {processed_positions_records} Positions records')
+    logger.info(f'Successfully processed {processed_positions_records} Positions records')
 
 
 def handle_positions_fees(db: Database):
@@ -82,7 +85,7 @@ def handle_positions_fees(db: Database):
 
     if positions_update_operations:
         db[Collection.POSITION_FEES].bulk_write(positions_update_operations)
-    print(f'Successfully processed {processed_positions_records} Positions Feees records')
+    logger.info(f'Successfully processed {processed_positions_records} Positions Feees records')
 
 
 def process_positions(mongo_url: str, mongo_database: Database, rpc_url: str):

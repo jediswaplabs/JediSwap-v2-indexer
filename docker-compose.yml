@@ -28,18 +28,6 @@ services:
       SINK_ID: nft_router
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
 
-  init_db:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - init
-    - --env-file
-    - env_goerli
-    environment:
-      PYTHONUNBUFFERED: "1"
-      RPC_URL: ${RPC_URL}
-
   event_processor:
     build:
       context: .
@@ -48,8 +36,6 @@ services:
     - process
     - --env-file
     - env_goerli
-    depends_on:
-      - init_db
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
@@ -62,8 +48,6 @@ services:
     - positions
     - --env-file
     - env_goerli
-    depends_on:
-      - init_db
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
@@ -79,8 +63,6 @@ services:
     - graphql
     - --env-file
     - env_goerli
-    depends_on:
-      - init_db
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
