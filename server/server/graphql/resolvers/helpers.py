@@ -88,7 +88,7 @@ def filter_by_pool_address(where: WhereFilterForPool, query: dict):
 def filter_by_last_seven_days(query: dict):
     from_datestamp = datetime.now() - timedelta(days=7)
     from_timestamp = int(from_datestamp.timestamp() * 1000)
-    query['date'] = {'$gt': from_timestamp}
+    query['periodStartUnix'] = {'$gt': from_timestamp}
 
 
 def convert_timestamp_to_datetime(timestamp: float):
