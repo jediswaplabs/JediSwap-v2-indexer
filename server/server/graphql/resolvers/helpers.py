@@ -10,6 +10,14 @@ from pymongo.cursor import CursorType
 import strawberry
 
 
+PERIODS_TO_DAYS_MAP = {
+    'one_day': 1,
+    'two_days': 2,
+    'one_week': 7,
+    'one_month': 30,
+}
+
+
 @strawberry.input
 class BlockFilter:
     number: Optional[int]
@@ -85,10 +93,10 @@ def filter_by_pool_address(where: WhereFilterForPool, query: dict):
         query['poolAddress'] = {'$in': token_in}
 
 
-def filter_by_last_seven_days(query: dict):
-    from_datestamp = datetime.now() - timedelta(days=7)
-    from_timestamp = int(from_datestamp.timestamp() * 1000)
-    query['periodStartUnix'] = {'$gt': from_timestamp}
+def filter_by_days_data(query: dict, period: str):
+    days = PERIODS_TO_DAYS_MAP.get(period)
+    from_datestamp = datetime.now() - timedelta(days=days)
+    query['periodStartUnix'] = {'$gt': from_datestamp}
 
 
 def convert_timestamp_to_datetime(timestamp: float):
@@ -97,3 +105,12 @@ def convert_timestamp_to_datetime(timestamp: float):
 
 def get_liquidity_value(data: dict) -> Decimal:
     return data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else Decimal(data['liquidity'])
+
+
+def validate_period_input(where) -> list[str]:
+    periods = getattr(where, 'period_in', list(PERIODS_TO_DAYS_MAP))
+    periods = periods or list(PERIODS_TO_DAYS_MAP)
+    for period in periods:
+        if not PERIODS_TO_DAYS_MAP.get(period):
+            raise TypeError(f'Invalid period value. Allowed values: {list(PERIODS_TO_DAYS_MAP)}')
+    return periods
