@@ -3,27 +3,29 @@ from decimal import Decimal
 from typing import List, Optional
 
 import strawberry
+from strawberry.types import Info
 from pymongo.database import Database
 
 from server.graphql.resolvers.helpers import (
-    BlockFilter, 
-    add_block_constraint, 
+    BlockFilter,
+    WhereFilterForPool,
+    add_block_constraint,
+    add_order_by_constraint, 
     convert_timestamp_to_datetime,
-    get_liquidity_value
+    get_liquidity_value,
+    filter_pools
 )
 from server.const import Collection, ZERO_DECIMAL128
+from server.graphql.resolvers.tokens import Token, get_token
 from server.query_utils import filter_by_the_latest_value
 
 
 @strawberry.type
-class PoolCreated:
-    id: str
+class Pool:
+    poolAddress: str
 
-    token0: str
-    token1: str
     fee: int
     tickSpacing: int
-    poolAddress: str
  
     datetime: dt.datetime
     block: int
@@ -49,15 +51,25 @@ class PoolCreated:
 
     txCount: int
 
+    token0Address: strawberry.Private[str]
+    token1Address: strawberry.Private[str]
+
+    @strawberry.field
+    def token0(self, info: Info) -> Token:
+        db: Database = info.context['db']
+        return get_token(db, self.token0Address)
+
+    @strawberry.field
+    def token1(self, info: Info) -> Token:
+        db: Database = info.context['db']
+        return get_token(db, self.token1Address)
+
     @classmethod
     def from_mongo(cls, data: dict):
         return cls(
-            id=data['_id'],
-            token0=data['token0'],
-            token1=data['token1'],
+            poolAddress=data['poolAddress'],
             fee=data['fee'],
             tickSpacing=data['tickSpacing'],
-            poolAddress=data['poolAddress'],
             datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
             feeGrowthGlobal0X128=Decimal(int(data['feeGrowthGlobal0X128'], 16)),
@@ -76,14 +88,23 @@ class PoolCreated:
             volumeToken0=data.get('volumeToken0', ZERO_DECIMAL128).to_decimal(),
             volumeToken1=data.get('volumeToken1', ZERO_DECIMAL128).to_decimal(),
             txCount=data.get('txCount', 0),
+            token0Address = data['token0'],
+            token1Address = data['token1'],
         )
 
 
-async def get_pools(info, block: Optional[BlockFilter] = None) -> List[PoolCreated]:
+async def get_pools(
+    info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
+    orderByDirection: Optional[str] = "asc", block: Optional[BlockFilter] = None, where: Optional[WhereFilterForPool] = None
+) -> List[Pool]:
     db: Database = info.context['db']
     query = {}
     filter_by_the_latest_value(query)
     add_block_constraint(query, block)
 
-    cursor = db[Collection.POOLS].find(query)
-    return [PoolCreated.from_mongo(d) for d in cursor]
+    if where is not None:
+        filter_pools(where, query)
+
+    cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
+    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    return [Pool.from_mongo(d) for d in cursor]
