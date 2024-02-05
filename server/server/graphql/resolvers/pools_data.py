@@ -36,7 +36,7 @@ class PoolData:
 
 
 @strawberry.input
-class WhereFilterForPoolData:
+class WhereFilterForPoolAndPeriod:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
     period_in: Optional[List[str]] = field(default_factory=list)
@@ -44,7 +44,7 @@ class WhereFilterForPoolData:
 
 async def get_pools_data(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
-    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPoolData] = None
+    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPoolAndPeriod] = None
 ) -> List[PoolData]:
     db: Database = info.context['db']
 

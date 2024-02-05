@@ -36,7 +36,7 @@ class TokenData:
 
 
 @strawberry.input
-class WhereFilterForTokenData:
+class WhereFilterForTokenAndPeriod:
     token_address: Optional[str] = None
     token_address_in: Optional[List[str]] = field(default_factory=list)
     period_in: Optional[List[str]] = field(default_factory=list)
@@ -44,7 +44,7 @@ class WhereFilterForTokenData:
 
 async def get_tokens_data(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
-    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForTokenData] = None
+    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForTokenAndPeriod] = None
 ) -> List[TokenData]:
     db: Database = info.context['db']
 
