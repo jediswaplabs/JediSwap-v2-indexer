@@ -8,7 +8,7 @@ from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import (
     add_order_by_constraint,
-    WhereFilterForPool, 
+    WhereFilterForPoolData, 
     filter_by_pool_address,
     get_liquidity_value
 )
@@ -74,7 +74,7 @@ class PoolDayData:
 
 async def get_pools_day_data(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
-    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPool] = None
+    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPoolData] = None
 ) -> List[PoolDayData]:
     db: Database = info.context['db']
     query = {}

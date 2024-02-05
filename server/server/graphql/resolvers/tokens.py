@@ -64,3 +64,9 @@ async def get_tokens(
     cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [Token.from_mongo(d) for d in cursor]
+
+
+def get_token(db: Database, id: str) -> Token:
+    query = {'tokenAddress': id}
+    token = db['tokens'].find_one(query)
+    return Token.from_mongo(token)
