@@ -54,10 +54,15 @@ async def get_tokens_data(
     if where is not None:
         filter_by_token_address(where, query)
         
-    tokens = {}
     cursor = db[Collection.TOKENS].find(query, skip=skip, limit=first)
     cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
-    tokens_addresses = [record['tokenAddress'] for record in cursor]
+
+    tokens = {}
+    tokens_addresses = []
+    for record in cursor:
+        token_address = record['tokenAddress']
+        add_empty_token_data(tokens, token_address, periods)
+        tokens_addresses.append(token_address)
 
     for period_name in periods:
         period_query = {
@@ -84,9 +89,6 @@ async def get_tokens_data(
         cursor = db[Collection.TOKENS_HOUR_DATA ].aggregate(pipeline)
         for record in cursor:
             token_address = record['_id']
-            if token_address not in tokens:
-                add_empty_token_data(tokens, token_address, periods)
-
             tokens[token_address]['period'][period_name] = {
                 'feesUSD': str(record['feesUSD'].to_decimal()),
                 'totalValueLocked': str(record['totalValueLocked'].to_decimal()),
@@ -95,9 +97,5 @@ async def get_tokens_data(
                 'volume': str(record['volume'].to_decimal()),
                 'volumeUSD': str(record['volumeUSD'].to_decimal()),
             }
-
-    if not tokens:
-        for token_address in tokens_addresses:
-            add_empty_token_data(tokens, token_address, periods)
 
     return [TokenData.from_mongo(values) for _, values in tokens.items()]

@@ -54,10 +54,15 @@ async def get_pools_data(
     if where is not None:
         filter_by_pool_address(where, query)
         
-    pools = {}
     cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
     cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
-    pools_addresses = [record['poolAddress'] for record in cursor]
+
+    pools = {}
+    pools_addresses = []
+    for record in cursor:
+        pool_address = record['poolAddress']
+        add_empty_pool_data(pools, pool_address, periods)
+        pools_addresses.append(pool_address)
     
     for period_name in periods:
         period_query = {
@@ -84,8 +89,6 @@ async def get_pools_data(
         cursor = db[Collection.POOLS_HOUR_DATA ].aggregate(pipeline)
         for record in cursor:
             pool_address = record['_id']
-            if pool_address not in pools:
-                add_empty_pool_data(pools, pool_address, periods)
             pools[pool_address]['period'][period_name] = {
                 'feesUSD': str(record['feesUSD'].to_decimal()),
                 'liquidity': str(get_liquidity_value(record)),
@@ -94,9 +97,5 @@ async def get_pools_data(
                 'volumeToken1': str(record['volumeToken1'].to_decimal()),
                 'volumeUSD': str(record['volumeUSD'].to_decimal()),
             }
-
-    if not pools:
-        for pool_address in pools_addresses:
-            add_empty_pool_data(pools, pool_address, periods)
 
     return [PoolData.from_mongo(values) for _, values in pools.items()]
