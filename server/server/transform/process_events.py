@@ -18,7 +18,7 @@ from server.interval_updates import (
 )
 from server.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
 from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_latest_value
-from server.utils import to_decimal
+from server.utils import to_decimal, convert_num_to_decimal128
 
 from pymongo import MongoClient, UpdateOne
 from structlog import get_logger
@@ -367,7 +367,7 @@ def handle_swap(*args, **kwargs):
     pool_update_data['$inc']['feesUSD'] = Decimal128(fees_USD)
     pool_update_data['$inc']['txCount'] = 1
     
-    pool_update_data['$set']['liquidity'] = record['liquidity']
+    pool_update_data['$set']['liquidity'] = convert_num_to_decimal128(record['liquidity'])
     pool_update_data['$set']['tick'] = record['tick']
     pool_update_data['$set']['sqrtPriceX96'] = record['sqrtPriceX96']
     pool_totalValueLockedToken0 = pool['totalValueLockedToken0'].to_decimal() + amount0
