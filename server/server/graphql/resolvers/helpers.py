@@ -111,10 +111,6 @@ def convert_timestamp_to_datetime(timestamp: float):
     return datetime.fromtimestamp(timestamp / 1e3)
 
 
-def get_liquidity_value(data: dict) -> Decimal:
-    return data['liquidity'].to_decimal() if isinstance(data['liquidity'], Decimal128) else Decimal(data['liquidity'])
-
-
 def validate_period_input(where) -> list[str]:
     periods = getattr(where, 'period_in', list(PERIODS_TO_DAYS_MAP))
     periods = periods or list(PERIODS_TO_DAYS_MAP)

@@ -77,8 +77,8 @@ async def get_tokens_data(
                 "$group": {
                     "_id": "$tokenAddress",
                     "feesUSD": {"$sum": "$feesUSD"},
-                    "totalValueLocked": {"$sum": "$totalValueLocked"},
-                    "totalValueLockedUSD": {"$sum": "$totalValueLockedUSD"},
+                    "totalValueLocked": {"$last": "$totalValueLocked"},
+                    "totalValueLockedUSD": {"$last": "$totalValueLockedUSD"},
                     "untrackedVolumeUSD": {"$sum": "$untrackedVolumeUSD"},
                     "volume": {"$sum": "$volume"},
                     "volumeUSD": {"$sum": "$volumeUSD"},

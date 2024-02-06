@@ -12,7 +12,6 @@ from server.graphql.resolvers.helpers import (
     add_block_constraint,
     add_order_by_constraint, 
     convert_timestamp_to_datetime,
-    get_liquidity_value,
     filter_pools
 )
 from server.const import Collection, ZERO_DECIMAL128
@@ -74,7 +73,7 @@ class Pool:
             block=data['block'],
             feeGrowthGlobal0X128=Decimal(int(data['feeGrowthGlobal0X128'], 16)),
             feeGrowthGlobal1X128=Decimal(int(data['feeGrowthGlobal1X128'], 16)),
-            liquidity=get_liquidity_value(data),
+            liquidity=data['liquidity'].to_decimal(),
             tick=data['tick'],
             sqrtPriceX96=data['sqrtPriceX96'],
             token0Price=data['token0Price'].to_decimal(),

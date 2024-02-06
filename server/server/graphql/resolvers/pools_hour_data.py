@@ -10,7 +10,6 @@ from server.graphql.resolvers.helpers import (
     add_order_by_constraint, 
     WhereFilterForPoolData, 
     filter_by_pool_address,
-    get_liquidity_value
 )
 from server.const import Collection
 
@@ -55,7 +54,7 @@ class PoolHourData:
             high=data['high'].to_decimal(),
             low=data['low'].to_decimal(),
             feesUSD=data['feesUSD'].to_decimal(),
-            liquidity=get_liquidity_value(data),
+            liquidity=data['liquidity'].to_decimal(),
             feeGrowthGlobal0X128=Decimal(int(data['feeGrowthGlobal0X128'], 16)),
             feeGrowthGlobal1X128=Decimal(int(data['feeGrowthGlobal1X128'], 16)),
             sqrtPriceX96=data['sqrtPriceX96'],

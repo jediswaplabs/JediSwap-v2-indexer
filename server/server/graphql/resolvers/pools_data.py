@@ -10,7 +10,6 @@ from server.graphql.resolvers.helpers import (
     filter_by_pool_address,
     filter_by_days_data,
     validate_period_input,
-    get_liquidity_value
 )
 from server.const import Collection
 
@@ -77,8 +76,8 @@ async def get_pools_data(
                 "$group": {
                     "_id": "$poolAddress",
                     "feesUSD": {"$sum": "$feesUSD"},
-                    "liquidity": {"$sum": "$liquidity"},
-                    "totalValueLockedUSD": {"$sum": "$totalValueLockedUSD"},
+                    "liquidity": {"$last": "$liquidity"},
+                    "totalValueLockedUSD": {"$last": "$totalValueLockedUSD"},
                     "volumeToken0": {"$sum": "$volumeToken0"},
                     "volumeToken1": {"$sum": "$volumeToken1"},
                     "volumeUSD": {"$sum": "$volumeUSD"},
@@ -91,7 +90,7 @@ async def get_pools_data(
             pool_address = record['_id']
             pools[pool_address]['period'][period_name] = {
                 'feesUSD': str(record['feesUSD'].to_decimal()),
-                'liquidity': str(get_liquidity_value(record)),
+                'liquidity': str(record['liquidity'].to_decimal()),
                 'totalValueLockedUSD': str(record['totalValueLockedUSD'].to_decimal()),
                 'volumeToken0': str(record['volumeToken0'].to_decimal()),
                 'volumeToken1': str(record['volumeToken1'].to_decimal()),
