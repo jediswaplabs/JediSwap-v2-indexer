@@ -76,7 +76,12 @@ poetry run server graphql
 
 ```
 export AUTH_TOKEN=<your_apibara_key>
+```
+4. Set RPC_URL and MONGODB_CONNECTION_STRING as env variable
+
+```
 export RPC_URL=<your_rpc_url>
+export MONGODB_CONNECTION_STRING=<your_mongo_url>
 ```
 
 4. Run `docker-compose.yml` or `docker-compose.prod.yml`

@@ -9,11 +9,13 @@ services:
     command:
       - run
       - --allow-env=/data/env_goerli
+      - --allow-env-from-env=MONGODB_CONNECTION_STRING
       - /data/indexer/src/factory.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: factory
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   nft_router:
     image: quay.io/apibara/sink-mongo:0.5.3
@@ -22,11 +24,13 @@ services:
     command:
       - run
       - --allow-env=/data/env_goerli
+      - --allow-env-from-env=MONGODB_CONNECTION_STRING
       - /data/indexer/src/nft_router.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: nft_router
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   event_processor:
     build:
@@ -39,6 +43,7 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   position_processor:
     build:
@@ -51,6 +56,7 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   graphql:
     build:
@@ -66,3 +72,4 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
