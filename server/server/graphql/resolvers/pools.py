@@ -45,6 +45,7 @@ class Pool:
 
     feesUSD: Decimal
     untrackedVolumeUSD: Decimal
+    volumeUSD: Decimal
     volumeToken0: Decimal
     volumeToken1: Decimal
 
@@ -71,19 +72,20 @@ class Pool:
             tickSpacing=data['tickSpacing'],
             datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
-            feeGrowthGlobal0X128=Decimal(int(data['feeGrowthGlobal0X128'], 16)),
-            feeGrowthGlobal1X128=Decimal(int(data['feeGrowthGlobal1X128'], 16)),
-            liquidity=data['liquidity'].to_decimal(),
-            tick=data['tick'],
-            sqrtPriceX96=data['sqrtPriceX96'],
-            token0Price=data['token0Price'].to_decimal(),
-            token1Price=data['token1Price'].to_decimal(),
-            totalValueLockedToken0=data['totalValueLockedToken0'].to_decimal(),
-            totalValueLockedToken1=data['totalValueLockedToken1'].to_decimal(),    
-            totalValueLockedETH=data['totalValueLockedETH'].to_decimal(),
-            totalValueLockedUSD=data['totalValueLockedUSD'].to_decimal(),
+            feeGrowthGlobal0X128=Decimal(int(data.get('feeGrowthGlobal0X128', '0x0'), 16)),
+            feeGrowthGlobal1X128=Decimal(int(data.get('feeGrowthGlobal1X128', '0x0'), 16)),
+            liquidity=data.get('liquidity', ZERO_DECIMAL128).to_decimal(),
+            tick=data.get('tick', 0),
+            sqrtPriceX96=data.get('sqrtPriceX96', 0),
+            token0Price=data.get('token0Price', ZERO_DECIMAL128).to_decimal(),
+            token1Price=data.get('token1Price', ZERO_DECIMAL128).to_decimal(),
+            totalValueLockedToken0=data.get('totalValueLockedToken0', ZERO_DECIMAL128).to_decimal(),
+            totalValueLockedToken1=data.get('totalValueLockedToken1', ZERO_DECIMAL128).to_decimal(),    
+            totalValueLockedETH=data.get('totalValueLockedETH', ZERO_DECIMAL128).to_decimal(),
+            totalValueLockedUSD=data.get('totalValueLockedUSD', ZERO_DECIMAL128).to_decimal(),
             feesUSD=data.get('feesUSD', ZERO_DECIMAL128).to_decimal(),
             untrackedVolumeUSD=data.get('untrackedVolumeUSD', ZERO_DECIMAL128).to_decimal(),
+            volumeUSD=data.get('volumeUSD', ZERO_DECIMAL128).to_decimal(),
             volumeToken0=data.get('volumeToken0', ZERO_DECIMAL128).to_decimal(),
             volumeToken1=data.get('volumeToken1', ZERO_DECIMAL128).to_decimal(),
             txCount=data.get('txCount', 0),

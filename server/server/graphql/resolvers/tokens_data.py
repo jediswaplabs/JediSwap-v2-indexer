@@ -79,9 +79,11 @@ async def get_tokens_data(
                     "feesUSD": {"$sum": "$feesUSD"},
                     "totalValueLocked": {"$last": "$totalValueLocked"},
                     "totalValueLockedUSD": {"$last": "$totalValueLockedUSD"},
+                    "derivedETH": {"$last": "$derivedETH"},
                     "untrackedVolumeUSD": {"$sum": "$untrackedVolumeUSD"},
                     "volume": {"$sum": "$volume"},
                     "volumeUSD": {"$sum": "$volumeUSD"},
+                    "txCount": {"$sum": "$txCount"},
                 }
             }
         ]
@@ -93,9 +95,11 @@ async def get_tokens_data(
                 'feesUSD': str(record['feesUSD'].to_decimal()),
                 'totalValueLocked': str(record['totalValueLocked'].to_decimal()),
                 'totalValueLockedUSD': str(record['totalValueLockedUSD'].to_decimal()),
+                'derivedETH': str(record['derivedETH'].to_decimal()),
                 'untrackedVolumeUSD': str(record['untrackedVolumeUSD'].to_decimal()),
                 'volume': str(record['volume'].to_decimal()),
                 'volumeUSD': str(record['volumeUSD'].to_decimal()),
+                'txCount': str(record['txCount']),
             }
 
     return [TokenData.from_mongo(values) for _, values in tokens.items()]
