@@ -422,7 +422,6 @@ def handle_swap(*args, **kwargs):
     token1_update_data['$set']['totalValueLocked'] = Decimal128(token1_totalValueLocked)
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * EthPrice.get())
 
-    # TODO Update fee growth
     contract = Contract.from_address_sync(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
     if contract is not None:
         (fee_growth_global_0_X128,) = contract.functions["get_fee_growth_global_0_X128"].call_sync()

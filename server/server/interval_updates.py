@@ -36,9 +36,10 @@ def update_factory_day_data(db: Database, factory_record: dict, timestamp: str,
             'volumeETH': ZERO_DECIMAL128,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
+            'txCount': 0,
         }
     factory_day_data_record['totalValueLockedUSD'] = factory_record['totalValueLockedUSD']
-    factory_day_data_record['txCount'] = factory_record['txCount']
+    factory_day_data_record['txCount'] += 1
     factory_day_data_record['volumeETH'] = Decimal128(factory_day_data_record['volumeETH'].to_decimal() + amount_total_ETH_tracked)
     factory_day_data_record['volumeUSD'] = Decimal128(factory_day_data_record['volumeUSD'].to_decimal() + amount_total_USD_tracked)
     factory_day_data_record['feesUSD'] = Decimal128(factory_day_data_record['feesUSD'].to_decimal() + fees_USD)
@@ -186,6 +187,7 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
             'untrackedVolumeUSD': ZERO_DECIMAL128,
+            'txCount': 0,
             'open': Decimal128(token_price),
             'high': Decimal128(token_price),
             'low': Decimal128(token_price)
@@ -201,10 +203,12 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
     token_day_data_record['priceUSD'] = Decimal128(token_price)
     token_day_data_record['totalValueLocked'] = token_record['totalValueLocked']
     token_day_data_record['totalValueLockedUSD'] = token_record['totalValueLockedUSD']
+    token_day_data_record['derivedETH'] = token_record['derivedETH']
     token_day_data_record['volume'] = Decimal128(token_day_data_record['volume'].to_decimal() + amount_total_USD_tracked)
     token_day_data_record['volumeUSD'] = Decimal128(token_day_data_record['volumeUSD'].to_decimal() + amount_abs)
     token_day_data_record['untrackedVolumeUSD'] = Decimal128(token_day_data_record['untrackedVolumeUSD'].to_decimal() + amount_abs)
     token_day_data_record['feesUSD'] = Decimal128(token_day_data_record['feesUSD'].to_decimal() + fees_USD)
+    token_day_data_record['txCount'] += 1
 
     update_request = UpdateOne({
         'tokenAddress': token_record['tokenAddress'],
@@ -236,9 +240,10 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
             'volumeUSD': ZERO_DECIMAL128,
             'feesUSD': ZERO_DECIMAL128,
             'untrackedVolumeUSD': ZERO_DECIMAL128,
+            'txCount': 0,
             'open': Decimal128(token_price),
             'high': Decimal128(token_price),
-            'low': Decimal128(token_price)
+            'low': Decimal128(token_price),
         }
 
     if token_price > token_hour_data_record['high'].to_decimal():
@@ -251,10 +256,12 @@ def update_token_hour_data(db: Database, token_record: dict, timestamp: str,
     token_hour_data_record['priceUSD'] = Decimal128(token_price)
     token_hour_data_record['totalValueLocked'] = token_record['totalValueLocked']
     token_hour_data_record['totalValueLockedUSD'] = token_record['totalValueLockedUSD']
+    token_hour_data_record['derivedETH'] = token_record['derivedETH']
     token_hour_data_record['volume'] = Decimal128(token_hour_data_record['volume'].to_decimal() + amount_total_USD_tracked)
     token_hour_data_record['volumeUSD'] = Decimal128(token_hour_data_record['volumeUSD'].to_decimal() + amount_abs)
     token_hour_data_record['untrackedVolumeUSD'] = Decimal128(token_hour_data_record['untrackedVolumeUSD'].to_decimal() + amount_abs)
     token_hour_data_record['feesUSD'] = Decimal128(token_hour_data_record['feesUSD'].to_decimal() + fees_USD)
+    token_hour_data_record['txCount'] += 1
 
     update_request = UpdateOne({
         'tokenAddress': token_record['tokenAddress'],
