@@ -3,4 +3,5 @@ export type { Config } from "https://esm.sh/@apibara/indexer@0.1.2";
 export type {
   Block,
   EventWithTransaction,
+  Transaction
 } from "https://esm.sh/@apibara/indexer@0.1.2/starknet";
