@@ -14,6 +14,9 @@ import {
   import {
     formatFelt, formatU256, senderAddress
   } from "../common/utils.ts";
+  import {
+    fetchTokensFromPosition,
+  } from "../common/position_tokens.ts";
   
   const filter = {
     header: { weak: true },
@@ -57,7 +60,7 @@ import {
     },
   };
     
-  export default function transform({ header, events }: Block) {
+  export default async function transform({ header, events }: Block) {
     const output = (events ?? []).map(({ transaction, event }: EventWithTransaction) => {
       const txMeta = {
         positionAddress: formatFelt(event.fromAddress),
@@ -150,6 +153,17 @@ import {
           return;
       }
     }).filter(Boolean);;
+
+    for (const inputEvent of output) {
+      const positionId = inputEvent.entity.positionId;
+      console.log(`Fetching tokens for position: ${positionId} ...`);
+      const positionInfo = await fetchTokensFromPosition(NFT_ROUTER_CONTRACT, positionId);
+      if (positionInfo) {
+        inputEvent.update["$set"].token0Address = positionInfo.token0;
+        inputEvent.update["$set"].token1Address = positionInfo.token1;
+        console.log(`Tokens for position ${positionId} updated`);
+      }
+    }
 
     return output;
   }

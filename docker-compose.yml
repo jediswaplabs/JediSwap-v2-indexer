@@ -25,6 +25,7 @@ services:
       - run
       - --allow-env=/data/env_goerli
       - --allow-env-from-env=MONGODB_CONNECTION_STRING
+      - --allow-net=${RPC_URL}
       - /data/indexer/src/nft_router.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
