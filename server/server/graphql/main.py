@@ -2,13 +2,24 @@ import asyncio
 
 import aiohttp_cors
 import strawberry
+from typing import List
 
 from aiohttp import web
 from pymongo import MongoClient
 from pymongo.database import Database
 from strawberry.aiohttp.views import GraphQLView
+from strawberry.dataloader import DataLoader
 
 from server.graphql.query import Query
+
+from server.graphql.resolvers.pools import Pool, get_pool
+from server.graphql.resolvers.tokens import Token, get_token
+
+async def load_pools(db, keys) -> List[Pool]:
+    return [get_pool(db, key) for key in keys]
+
+async def load_tokens(db, keys) -> List[Token]:
+    return [get_token(db, key) for key in keys]
 
 
 class IndexerGraphQLView(GraphQLView):
@@ -17,7 +28,9 @@ class IndexerGraphQLView(GraphQLView):
         self._db = db
 
     async def get_context(self, request, response):
-        return {'db': self._db}
+        return {'db': self._db,
+                "pool_loader": DataLoader(load_fn=lambda ids: load_pools(self._db, ids)),
+                "token_loader": DataLoader(load_fn=lambda ids: load_tokens(self._db, ids))}
 
 
 async def run_graphql_server(mongo_url, mongo_database):

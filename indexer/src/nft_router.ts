@@ -12,7 +12,7 @@ import {
     STREAM_URL,
   } from "../common/constants.ts";
   import {
-    formatFelt, formatU256
+    formatFelt, formatU256, senderAddress
   } from "../common/utils.ts";
   
   const filter = {
@@ -21,22 +21,22 @@ import {
       {
         fromAddress: NFT_ROUTER_CONTRACT,
         keys: [SELECTOR_KEYS.TRANSFER],
-        includeTransaction: false,
+        includeTransaction: true,
         includeReceipt: false,
       }, {
         fromAddress: NFT_ROUTER_CONTRACT,
         keys: [SELECTOR_KEYS.INCREASE_LIQUIDITY],
-        includeTransaction: false,
+        includeTransaction: true,
         includeReceipt: false,
       }, {
         fromAddress: NFT_ROUTER_CONTRACT,
         keys: [SELECTOR_KEYS.DECREASE_LIQUIDITY],
-        includeTransaction: false,
+        includeTransaction: true,
         includeReceipt: false,
       }, {
         fromAddress: NFT_ROUTER_CONTRACT,
         keys: [SELECTOR_KEYS.COLLECT],
-        includeTransaction: false,
+        includeTransaction: true,
         includeReceipt: false,
       },
     ],
@@ -58,11 +58,13 @@ import {
   };
     
   export default function transform({ header, events }: Block) {
-    const output = events.map(({ event }: EventWithTransaction) => {
+    const output = (events ?? []).map(({ transaction, event }: EventWithTransaction) => {
       const txMeta = {
         positionAddress: formatFelt(event.fromAddress),
         timestamp: Date.parse(header?.timestamp),
         block: Number(header?.blockNumber),
+        tx_hash: formatFelt(transaction.meta.hash),
+        tx_sender: senderAddress(transaction),
       };
       const key = event.keys[0];
       switch (key) {

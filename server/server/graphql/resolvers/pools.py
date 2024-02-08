@@ -56,13 +56,11 @@ class Pool:
 
     @strawberry.field
     def token0(self, info: Info) -> Token:
-        db: Database = info.context['db']
-        return get_token(db, self.token0Address)
+        return info.context["token_loader"].load(self.token0Address)
 
     @strawberry.field
     def token1(self, info: Info) -> Token:
-        db: Database = info.context['db']
-        return get_token(db, self.token1Address)
+        return info.context["token_loader"].load(self.token1Address)
 
     @classmethod
     def from_mongo(cls, data: dict):
@@ -109,3 +107,8 @@ async def get_pools(
     cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
     cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
     return [Pool.from_mongo(d) for d in cursor]
+
+def get_pool(db: Database, id: str) -> Pool:
+    query = {'poolAddress': id}
+    pool = db['pools'].find_one(query)
+    return Pool.from_mongo(pool)

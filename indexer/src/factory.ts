@@ -13,7 +13,7 @@ import {
   EVENTS,
 } from "../common/constants.ts";
 import {
-  formatFelt, formatI256, formatU256, formatI32
+  formatFelt, formatI256, formatU256, formatI32, senderAddress
 } from "../common/utils.ts";
 
 const filter = {
@@ -22,6 +22,7 @@ const filter = {
     {
       fromAddress: FACTORY_CONTRACT,
       keys: [SELECTOR_KEYS.POOL_CREATED],
+      includeTransaction: true,
       includeReceipt: false,
     },
   ],
@@ -42,7 +43,7 @@ export const config = {
 };
 
 export function factory({ header, events }: Block) {
-  const poolEvents = events.flatMap(({ event }: EventWithTransaction) => {
+  const poolEvents = (events ?? []).flatMap(({ event }: EventWithTransaction) => {
     const poolAddress = formatFelt(event.data[4]);
     return [
       SELECTOR_KEYS.INITIALIZE,
@@ -53,11 +54,12 @@ export function factory({ header, events }: Block) {
     ].map((eventKey) => ({
       fromAddress: poolAddress,
       keys: [eventKey],
+      includeTransaction: true,
       includeReceipt: false,
     }));
   });
 
-  const pools_data = events.flatMap(({ event }: EventWithTransaction) => {
+  const pools_data = (events ?? []).flatMap(({ transaction, event }: EventWithTransaction) => {
     const data = {
       token0: formatFelt(event.data[0]),
       token1: formatFelt(event.data[1]),
@@ -66,6 +68,8 @@ export function factory({ header, events }: Block) {
       poolAddress: formatFelt(event.data[4]),
       timestamp: Date.parse(header?.timestamp),
       block: Number(header?.blockNumber),
+      tx_hash: formatFelt(transaction.meta.hash),
+      tx_sender: senderAddress(transaction)
     };
     return  {
       data,
@@ -83,11 +87,13 @@ export function factory({ header, events }: Block) {
 }
   
 export default function transform({ header, events }: Block) {
-  const output = events.map(({ event }: EventWithTransaction) => {
+  const output = (events ?? []).map(({transaction, event }: EventWithTransaction) => {
     const txMeta = {
       poolAddress: formatFelt(event.fromAddress),
       timestamp: Date.parse(header?.timestamp),
       block: Number(header?.blockNumber),
+      tx_hash: formatFelt(transaction.meta.hash),
+      tx_sender: senderAddress(transaction)
     };
     const key = event.keys[0];
     switch (key) {
