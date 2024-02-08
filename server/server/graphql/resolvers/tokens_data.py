@@ -84,6 +84,10 @@ async def get_tokens_data(
                     "volume": {"$sum": "$volume"},
                     "volumeUSD": {"$sum": "$volumeUSD"},
                     "txCount": {"$sum": "$txCount"},
+                    "open": {"$first": "$open"},
+                    "high": {"$max": "$high"},
+                    "low": {"$min": "$low"},
+                    "close": {"$last": "$close"},
                 }
             }
         ]
@@ -100,6 +104,10 @@ async def get_tokens_data(
                 'volume': str(record['volume'].to_decimal()),
                 'volumeUSD': str(record['volumeUSD'].to_decimal()),
                 'txCount': str(record['txCount']),
+                'open': str(record['open'].to_decimal()),
+                'high': str(record['high'].to_decimal()),
+                'low': str(record['low'].to_decimal()),
+                'close': str(record['close'].to_decimal()),
             }
 
     return [TokenData.from_mongo(values) for _, values in tokens.items()]
