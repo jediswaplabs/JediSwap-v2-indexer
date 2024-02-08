@@ -44,6 +44,12 @@ class WhereFilterForPoolData:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
 
+@strawberry.input
+class WhereFilterForTransaction:
+    pool_address: Optional[str] = None
+    pool_address_in: Optional[List[str]] = field(default_factory=list)
+    tx_type_in: Optional[List[str]] = field(default_factory=lambda: ['Swap', 'Burn', 'Mint'])
+
 
 def add_block_constraint(query: dict, block: Optional[BlockFilter]):
     if block and block.number:
@@ -100,6 +106,14 @@ def filter_pools(where: WhereFilterForPool, query: dict):
     if where.token1_address is not None:
         query["token1"] = format_address(where.token1_address)
 
+def filter_transactions(where: WhereFilterForTransaction, query: dict):
+    if where.pool_address is not None:
+        query['poolAddress'] = format_address(where.pool_address)
+    if where.pool_address_in:
+        pool_in = [format_address(pool) for pool in where.pool_address_in]
+        query['poolAddress'] = {'$in': pool_in}
+    if where.tx_type_in:
+        query['event'] = {'$in': where.tx_type_in}
 
 def filter_by_days_data(query: dict, period: str):
     days = PERIODS_TO_DAYS_MAP.get(period)

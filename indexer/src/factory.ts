@@ -43,7 +43,7 @@ export const config = {
 };
 
 export function factory({ header, events }: Block) {
-  const poolEvents = events.flatMap(({ event }: EventWithTransaction) => {
+  const poolEvents = (events ?? []).flatMap(({ event }: EventWithTransaction) => {
     const poolAddress = formatFelt(event.data[4]);
     return [
       SELECTOR_KEYS.INITIALIZE,
@@ -59,7 +59,7 @@ export function factory({ header, events }: Block) {
     }));
   });
 
-  const pools_data = events.flatMap(({ transaction, event }: EventWithTransaction) => {
+  const pools_data = (events ?? []).flatMap(({ transaction, event }: EventWithTransaction) => {
     const data = {
       token0: formatFelt(event.data[0]),
       token1: formatFelt(event.data[1]),
@@ -69,7 +69,7 @@ export function factory({ header, events }: Block) {
       timestamp: Date.parse(header?.timestamp),
       block: Number(header?.blockNumber),
       tx_hash: formatFelt(transaction.meta.hash),
-      tx_sender: senderAddress(transaction),
+      tx_sender: senderAddress(transaction)
     };
     return  {
       data,
@@ -87,13 +87,13 @@ export function factory({ header, events }: Block) {
 }
   
 export default function transform({ header, events }: Block) {
-  const output = events ?? [].map(({ transaction , event }: EventWithTransaction) => {
+  const output = (events ?? []).map(({transaction, event }: EventWithTransaction) => {
     const txMeta = {
       poolAddress: formatFelt(event.fromAddress),
       timestamp: Date.parse(header?.timestamp),
       block: Number(header?.blockNumber),
       tx_hash: formatFelt(transaction.meta.hash),
-      tx_sender: senderAddress(transaction),
+      tx_sender: senderAddress(transaction)
     };
     const key = event.keys[0];
     switch (key) {
