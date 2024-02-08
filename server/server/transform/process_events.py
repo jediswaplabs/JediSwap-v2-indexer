@@ -131,7 +131,7 @@ def handle_initialize(*args, **kwargs):
 
     update_pool_record(db, pool['_id'], pool_update_data)
 
-    EthPrice.set(rpc_url)
+    EthPrice.set(db)
 
     pool = get_pool(db, record['poolAddress'])
     update_pool_day_data(db, pool, record['timestamp'])
@@ -399,10 +399,10 @@ def handle_swap(*args, **kwargs):
     pool_update_data['$set']['token0Price'] = Decimal128(prices[0])
     pool_update_data['$set']['token1Price'] = Decimal128(prices[1])
 
-    EthPrice.set(rpc_url)
+    EthPrice.set(db)
 
-    token0_derivedETH = find_eth_per_token(db, token0, rpc_url)
-    token1_derivedETH = find_eth_per_token(db, token1, rpc_url)
+    token0_derivedETH = find_eth_per_token(db, token0['tokenAddress'], rpc_url)
+    token1_derivedETH = find_eth_per_token(db, token1['tokenAddress'], rpc_url)
     token0_update_data['$set']['derivedETH'] = Decimal128(token0_derivedETH)
     token1_update_data['$set']['derivedETH'] = Decimal128(token1_derivedETH)
     
@@ -454,10 +454,10 @@ EVENT_TO_FUNCTION_MAP = {
 
 def process_events(mongo_url: str, mongo_database: Database, rpc_url: str):
     processed_records = []
-    EthPrice.set(rpc_url)
     with MongoClient(mongo_url) as mongo:
         db_name = mongo_database.replace('-', '_')
         db = mongo[db_name]
+        EthPrice.set(db)
         for record in yield_pool_data_records(db):
             event_func = EVENT_TO_FUNCTION_MAP.get(record['event'])
             if event_func:
