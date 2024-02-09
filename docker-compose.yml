@@ -1,7 +1,6 @@
 version: '3.6'
 
 services:
-
   factory:
     image: quay.io/apibara/sink-mongo:0.5.3
     volumes:
@@ -33,6 +32,7 @@ services:
       SINK_ID: nft_router
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+      RPC_URL: ${RPC_URL}
 
   event_processor:
     build:
@@ -40,11 +40,11 @@ services:
       dockerfile: Dockerfile
     restart: always
     command:
-    - events
-    - --env-file
-    - env_goerli
+      - events
+      - --env-file
+      - env_goerli
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
@@ -54,12 +54,13 @@ services:
       dockerfile: Dockerfile
     restart: always
     command:
-    - positions
-    - --env-file
-    - env_goerli
+      - positions
+      - --env-file
+      - env_goerli
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   graphql:
     build:
@@ -67,12 +68,12 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-    - 8000:8000
+      - 8000:8000
     command:
-    - graphql
-    - --env-file
-    - env_goerli
+      - graphql
+      - --env-file
+      - env_goerli
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
