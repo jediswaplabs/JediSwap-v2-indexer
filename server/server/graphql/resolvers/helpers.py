@@ -52,7 +52,7 @@ class WhereFilterForTransaction:
     tx_sender: Optional[str] = None
 
 
-def add_block_constraint(query: dict, block: Optional[BlockFilter]):
+async def add_block_constraint(query: dict, block: Optional[BlockFilter]):
     if block and block.number:
         query["$or"] = [
             {
@@ -70,7 +70,7 @@ def add_block_constraint(query: dict, block: Optional[BlockFilter]):
         ]
 
 
-def add_order_by_constraint(cursor: CursorType, orderBy: Optional[str] = None, 
+async def add_order_by_constraint(cursor: CursorType, orderBy: Optional[str] = None, 
                             orderByDirection: Optional[str] = 'asc') -> CursorType:
     if orderBy:
         if orderByDirection == 'asc':
@@ -80,7 +80,7 @@ def add_order_by_constraint(cursor: CursorType, orderBy: Optional[str] = None,
     return cursor
 
 
-def filter_by_token_address(where: WhereFilterForToken, query: dict):
+async def filter_by_token_address(where: WhereFilterForToken, query: dict):
     if where.token_address is not None:
         query['tokenAddress'] = format_address(where.token_address)
     if where.token_address_in:
@@ -88,7 +88,7 @@ def filter_by_token_address(where: WhereFilterForToken, query: dict):
         query['tokenAddress'] = {'$in': token_in}
 
 
-def filter_by_pool_address(where: WhereFilterForPoolData, query: dict):
+async def filter_by_pool_address(where: WhereFilterForPoolData, query: dict):
     if where.pool_address is not None:
         query['poolAddress'] = format_address(where.pool_address)
     if where.pool_address_in:
@@ -96,7 +96,7 @@ def filter_by_pool_address(where: WhereFilterForPoolData, query: dict):
         query['poolAddress'] = {'$in': pool_in}
 
 
-def filter_pools(where: WhereFilterForPool, query: dict):
+async def filter_pools(where: WhereFilterForPool, query: dict):
     if where.pool_address is not None:
         query['poolAddress'] = format_address(where.pool_address)
     if where.pool_address_in:
@@ -107,7 +107,7 @@ def filter_pools(where: WhereFilterForPool, query: dict):
     if where.token1_address is not None:
         query["token1"] = format_address(where.token1_address)
 
-def filter_transactions(where: WhereFilterForTransaction, query: dict):
+async def filter_transactions(where: WhereFilterForTransaction, query: dict):
     if where.pool_address is not None:
         query['poolAddress'] = format_address(where.pool_address)
     if where.pool_address_in:
@@ -118,7 +118,7 @@ def filter_transactions(where: WhereFilterForTransaction, query: dict):
     if where.tx_sender is not None:
         query['tx_sender'] = format_address(where.tx_sender)
 
-def filter_by_days_data(query: dict, period: str):
+async def filter_by_days_data(query: dict, period: str):
     days = PERIODS_TO_DAYS_MAP.get(period)
     from_datestamp = datetime.now() - timedelta(days=days)
     query['periodStartUnix'] = {'$gt': from_datestamp}
@@ -128,7 +128,7 @@ def convert_timestamp_to_datetime(timestamp: float):
     return datetime.fromtimestamp(timestamp / 1e3)
 
 
-def validate_period_input(where) -> list[str]:
+async def validate_period_input(where) -> list[str]:
     periods = getattr(where, 'period_in', list(PERIODS_TO_DAYS_MAP))
     periods = periods or list(PERIODS_TO_DAYS_MAP)
     for period in periods:

@@ -5,7 +5,7 @@ from bson import Decimal128
 from pymongo.database import Database
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
-from server.pricing import EthPrice
+from server.transform.pricing import EthPrice
 
 from pymongo import UpdateOne
 

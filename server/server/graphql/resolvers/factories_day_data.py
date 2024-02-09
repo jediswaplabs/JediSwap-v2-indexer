@@ -47,6 +47,6 @@ async def get_factories_day_data(
     query = {}
 
     cursor = db[Collection.FACTORIES_DAY_DATA].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [FactoryDayData.from_mongo(d) for d in cursor]

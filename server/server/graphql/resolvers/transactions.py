@@ -47,9 +47,9 @@ async def get_transactions(
     db: Database = info.context['db']
     query = {"processed": True}
 
-    filter_transactions(where, query)
+    await filter_transactions(where, query)
 
     cursor = db[Collection.POOLS_DATA].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [Transaction.from_mongo(d) for d in cursor]

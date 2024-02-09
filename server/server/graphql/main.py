@@ -16,10 +16,10 @@ from server.graphql.resolvers.pools import Pool, get_pool
 from server.graphql.resolvers.tokens import Token, get_token
 
 async def load_pools(db, keys) -> List[Pool]:
-    return [get_pool(db, key) for key in keys]
+    return [await get_pool(db, key) for key in keys]
 
 async def load_tokens(db, keys) -> List[Token]:
-    return [get_token(db, key) for key in keys]
+    return [await get_token(db, key) for key in keys]
 
 
 class IndexerGraphQLView(GraphQLView):
@@ -63,8 +63,3 @@ async def run_graphql_server(mongo_url, mongo_database):
 
     while True:
         await asyncio.sleep(5_000)
-
-
-def run(mongo_url: str, mongo_database: Database):
-    print('Starting server')
-    asyncio.run(run_graphql_server(mongo_url, mongo_database))

@@ -47,14 +47,14 @@ async def get_pools_data(
 ) -> List[PoolData]:
     db: Database = info.context['db']
 
-    periods = validate_period_input(where)
+    periods = await validate_period_input(where)
 
     query = {}
     if where is not None:
-        filter_by_pool_address(where, query)
+        await filter_by_pool_address(where, query)
         
     cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     pools = {}
     pools_addresses = []
@@ -67,7 +67,7 @@ async def get_pools_data(
         period_query = {
             'poolAddress': {'$in': pools_addresses}
         }
-        filter_by_days_data(period_query, period_name)
+        await filter_by_days_data(period_query, period_name)
         pipeline = [
             {
                 "$match": period_query

@@ -43,7 +43,7 @@ class WhereFilterForNftPositionFee:
 
 
 
-def get_nft_position_fees(
+async def get_nft_position_fees(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
     orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForNftPositionFee] = None
 ) -> List[NftPositionFee]:

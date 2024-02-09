@@ -14,7 +14,7 @@ from server.graphql.resolvers.helpers import (
 from server.const import Collection
 
 
-def add_empty_token_data(tokens: dict, token_address: str, periods: list):
+async def add_empty_token_data(tokens: dict, token_address: str, periods: list):
     tokens[token_address] = {}
     tokens[token_address]['tokenAddress'] = token_address
     tokens[token_address]['period'] = {}
@@ -48,27 +48,27 @@ async def get_tokens_data(
 ) -> List[TokenData]:
     db: Database = info.context['db']
 
-    periods = validate_period_input(where)
+    periods = await validate_period_input(where)
 
     query = {}
     if where is not None:
-        filter_by_token_address(where, query)
+        await filter_by_token_address(where, query)
         
     cursor = db[Collection.TOKENS].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     tokens = {}
     tokens_addresses = []
     for record in cursor:
         token_address = record['tokenAddress']
-        add_empty_token_data(tokens, token_address, periods)
+        await add_empty_token_data(tokens, token_address, periods)
         tokens_addresses.append(token_address)
 
     for period_name in periods:
         period_query = {
             'tokenAddress': {'$in': tokens_addresses}
         }
-        filter_by_days_data(period_query, period_name)
+        await filter_by_days_data(period_query, period_name)
         pipeline = [
             {
                 "$match": period_query

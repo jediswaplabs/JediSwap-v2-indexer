@@ -65,9 +65,9 @@ async def get_tokens_day_data(
     query = {}
 
     if where is not None:
-        filter_by_token_address(where, query)
+        await filter_by_token_address(where, query)
 
     cursor = db[Collection.TOKENS_DAY_DATA].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [TokenDayData.from_mongo(d) for d in cursor]

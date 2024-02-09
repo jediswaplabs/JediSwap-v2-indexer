@@ -1,3 +1,6 @@
+import asyncio
+from functools import wraps
+
 import argparse
 import os
 import sys
@@ -5,15 +8,23 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from server.graphql.main import run as graphql_run
+from server.graphql.main import run_graphql_server
 from server.transform.process_events import run as process_run
 from server.transform.process_positions import run as positions_run
 
 
 ENV_FILE = Path(__file__).parent.parent.parent / 'env_goerli'
 
+def async_command(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
 
-def run():
+    return wrapper
+
+
+@async_command
+async def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['init', 'process', 'graphql', 'positions'], 
                         help='Choose action: init or process or graphql or positions')
@@ -37,8 +48,8 @@ def run():
         sys.exit('RPC_URL not set')
 
     elif args.action == 'process':
-        process_run(mongo_url, mongo_database, rpc_url)
+        await process_run(mongo_url, mongo_database, rpc_url)
     elif args.action == 'graphql':
-        graphql_run(mongo_url, mongo_database)
+        await run_graphql_server(mongo_url, mongo_database)
     elif args.action == 'positions':
-        positions_run(mongo_url, mongo_database, rpc_url)
+        await positions_run(mongo_url, mongo_database, rpc_url)

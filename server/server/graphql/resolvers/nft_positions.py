@@ -49,7 +49,7 @@ class WhereFilterForNftPosition:
 
 
 
-def get_nft_positions(
+async def get_nft_positions(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
     orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForNftPosition] = None
 ) -> List[NftPosition]:
@@ -64,6 +64,6 @@ def get_nft_positions(
             query['ownerAddress'] = where.owner_address
 
     cursor = db[Collection.POSITIONS].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [NftPosition.from_mongo(d) for d in cursor]
