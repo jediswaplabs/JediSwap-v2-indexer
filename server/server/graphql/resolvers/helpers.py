@@ -37,8 +37,8 @@ class WhereFilterForToken:
 class WhereFilterForPool:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
-    token0_address: Optional[str] = None
-    token1_address: Optional[str] = None
+    both_token_address_in: Optional[List[str]] = field(default_factory=list)
+    either_token_address: Optional[str] = None
 
 
 @strawberry.input
@@ -102,7 +102,7 @@ async def filter_by_pool_address(where: WhereFilterForPoolData, query: dict):
 async def filter_pools_by_token_addresses(where: WhereFilterForPoolData, query: dict, db: Database):
     if where.both_token_address_in:
         tokens_in = [format_address(token) for token in where.both_token_address_in]
-        pool_query = {"token0": {"$in": tokens_in}, "token1": {"$in": tokens_in}}
+        pool_query = {"$and": [{"token0": {"$in": tokens_in}}, {"token1": {"$in": tokens_in}}]}
         cursor = db[Collection.POOLS].find(pool_query)
         pool_addresses = [d["poolAddress"] for d in cursor]
         if where.pool_address_in:
@@ -117,10 +117,11 @@ async def filter_pools(where: WhereFilterForPool, query: dict):
     if where.pool_address_in:
         pool_in = [format_address(pool) for pool in where.pool_address_in]
         query['poolAddress'] = {'$in': pool_in}
-    if where.token0_address is not None:
-        query["token0"] = format_address(where.token0_address)
-    if where.token1_address is not None:
-        query["token1"] = format_address(where.token1_address)
+    if where.both_token_address_in:
+        tokens_in = [format_address(token) for token in where.both_token_address_in]
+        query["$and"] = [{"token0": {"$in": tokens_in}}, {"token1": {"$in": tokens_in}}]
+    if where.either_token_address is not None:
+        query["$or"] = [{"token0": format_address(where.either_token_address)}, {"token1": format_address(where.either_token_address)}]
 
 async def filter_transactions(where: WhereFilterForTransaction, query: dict):
     if where.pool_address is not None:
