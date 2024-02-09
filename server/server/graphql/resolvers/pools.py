@@ -98,7 +98,7 @@ async def get_pools(
 ) -> List[Pool]:
     db: Database = info.context['db']
     query = {}
-    filter_by_the_latest_value(query)
+    await filter_by_the_latest_value(query)
     await add_block_constraint(query, block)
 
     if where is not None:

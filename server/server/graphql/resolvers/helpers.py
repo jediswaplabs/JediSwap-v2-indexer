@@ -6,9 +6,11 @@ from typing import Optional, TypeVar, Generic, List
 from bson import Decimal128
 from pymongo import ASCENDING, DESCENDING
 from pymongo.cursor import CursorType
+from pymongo.database import Database
 
 import strawberry
 
+from server.const import Collection
 from server.utils import format_address
 
 
@@ -43,6 +45,7 @@ class WhereFilterForPool:
 class WhereFilterForPoolData:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
+    both_token_address_in: Optional[List[str]] = field(default_factory=list)
 
 @strawberry.input
 class WhereFilterForTransaction:
@@ -94,6 +97,18 @@ async def filter_by_pool_address(where: WhereFilterForPoolData, query: dict):
     if where.pool_address_in:
         pool_in = [format_address(pool) for pool in where.pool_address_in]
         query['poolAddress'] = {'$in': pool_in}
+
+
+async def filter_pools_by_token_addresses(where: WhereFilterForPoolData, query: dict, db: Database):
+    if where.both_token_address_in:
+        tokens_in = [format_address(token) for token in where.both_token_address_in]
+        pool_query = {"token0": {"$in": tokens_in}, "token1": {"$in": tokens_in}}
+        cursor = db[Collection.POOLS].find(pool_query)
+        pool_addresses = [d["poolAddress"] for d in cursor]
+        if where.pool_address_in:
+            where.pool_address_in = [pool_address for pool_address in pool_addresses if pool_address in where.pool_address_in]
+        else:
+            where.pool_address_in.extend(pool_addresses)
 
 
 async def filter_pools(where: WhereFilterForPool, query: dict):
