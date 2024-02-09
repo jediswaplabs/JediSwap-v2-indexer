@@ -49,6 +49,7 @@ class WhereFilterForTransaction:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
     tx_type_in: Optional[List[str]] = field(default_factory=lambda: ['Swap', 'Burn', 'Mint'])
+    tx_sender: Optional[str] = None
 
 
 def add_block_constraint(query: dict, block: Optional[BlockFilter]):
@@ -114,6 +115,8 @@ def filter_transactions(where: WhereFilterForTransaction, query: dict):
         query['poolAddress'] = {'$in': pool_in}
     if where.tx_type_in:
         query['event'] = {'$in': where.tx_type_in}
+    if where.tx_sender is not None:
+        query['tx_sender'] = format_address(where.tx_sender)
 
 def filter_by_days_data(query: dict, period: str):
     days = PERIODS_TO_DAYS_MAP.get(period)
