@@ -32,31 +32,33 @@ services:
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
-  # event_processor:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   command:
-  #   - process
-  #   - --env-file
-  #   - env_goerli
-  #   environment:
-  #     PYTHONUNBUFFERED: "1"
-  #     RPC_URL: ${RPC_URL}
-  #     MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+  event_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command:
+    - events
+    - --env-file
+    - env_goerli
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
-  # position_processor:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   command:
-  #   - positions
-  #   - --env-file
-  #   - env_goerli
-  #   environment:
-  #     PYTHONUNBUFFERED: "1"
-  #     RPC_URL: ${RPC_URL}
-  #     MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+  position_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command:
+    - positions
+    - --env-file
+    - env_goerli
+    environment:
+      PYTHONUNBUFFERED: "1"
+      RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   graphql:
     build:

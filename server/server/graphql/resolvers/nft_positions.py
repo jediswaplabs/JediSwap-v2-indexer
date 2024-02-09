@@ -9,7 +9,7 @@ from strawberry.types import Info
 from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime
 from server.const import Collection, DEFAULT_DECIMALS
 from server.query_utils import filter_by_the_latest_value
-from server.utils import to_decimal
+from server.utils import amount_after_decimals
 
 
 @strawberry.type
@@ -32,10 +32,10 @@ class NftPosition:
             positionId=data['positionId'],
             positionAddress=data['positionAddress'],
             ownerAddress=data['ownerAddress'],
-            depositedToken0=to_decimal(data.get('depositedToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            depositedToken1=to_decimal(data.get('depositedToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken0=to_decimal(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken1=to_decimal(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
+            depositedToken0=amount_after_decimals(data.get('depositedToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
+            depositedToken1=amount_after_decimals(data.get('depositedToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
+            withdrawnToken0=amount_after_decimals(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
+            withdrawnToken1=amount_after_decimals(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
             liquidity=Decimal(data.get('liquidity', 0)),
             datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
