@@ -79,9 +79,9 @@ async def get_pools_day_data(
     query = {}
 
     if where is not None:
-        filter_by_pool_address(where, query)
+        await filter_by_pool_address(where, query)
 
     cursor = db[Collection.POOLS_DAY_DATA].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [PoolDayData.from_mongo(d) for d in cursor]

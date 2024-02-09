@@ -15,7 +15,7 @@ from server.graphql.resolvers.helpers import (
     filter_pools
 )
 from server.const import Collection, ZERO_DECIMAL128
-from server.graphql.resolvers.tokens import Token, get_token
+from server.graphql.resolvers.tokens import Token
 from server.query_utils import filter_by_the_latest_value
 
 
@@ -99,16 +99,16 @@ async def get_pools(
     db: Database = info.context['db']
     query = {}
     filter_by_the_latest_value(query)
-    add_block_constraint(query, block)
+    await add_block_constraint(query, block)
 
     if where is not None:
-        filter_pools(where, query)
+        await filter_pools(where, query)
 
     cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
     return [Pool.from_mongo(d) for d in cursor]
 
-def get_pool(db: Database, id: str) -> Pool:
+async def get_pool(db: Database, id: str) -> Pool:
     query = {'poolAddress': id}
     pool = db['pools'].find_one(query)
     return Pool.from_mongo(pool)

@@ -49,7 +49,7 @@ async def get_factories(info, block: Optional[BlockFilter] = None, where: Option
         if where.address is not None:
             query['address'] = where.address
 
-    add_block_constraint(query, block)
+    await add_block_constraint(query, block)
 
     cursor = db[Collection.FACTORIES].find(query)
     return [Factory.from_mongo(d) for d in cursor]

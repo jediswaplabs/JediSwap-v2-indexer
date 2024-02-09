@@ -5,28 +5,28 @@ from bson import Decimal128
 from pymongo.database import Database
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
-from server.pricing import EthPrice
+from server.transform.pricing import EthPrice
 
 from pymongo import UpdateOne
 
 
-def get_day_id(timestamp: str) -> tuple[int, int]:
+async def get_day_id(timestamp: str) -> tuple[int, int]:
     day_id = int(timestamp) // 86400000
     day_start = datetime.fromtimestamp(day_id * 86400)
     return day_id, day_start
 
 
-def get_hour_id(timestamp: str) -> tuple[int, int]:
+async def get_hour_id(timestamp: str) -> tuple[int, int]:
     hour_id = int(timestamp) // 3600000
     hour_start = datetime.fromtimestamp(hour_id * 3600)
     return hour_id, hour_start
 
 
-def update_factory_day_data(db: Database, factory_record: dict, timestamp: str, 
+async def update_factory_day_data(db: Database, factory_record: dict, timestamp: str, 
                             amount_total_ETH_tracked: Decimal = ZERO_DECIMAL, 
                             amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                             fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start = get_day_id(timestamp)
+    day_id, day_start = await get_day_id(timestamp)
 
     factory_day_data_record = db[Collection.FACTORIES_DAY_DATA].find_one({'dayId': day_id})
     if not factory_day_data_record:
@@ -53,12 +53,12 @@ def update_factory_day_data(db: Database, factory_record: dict, timestamp: str,
     return factory_day_data_record
 
 
-def update_pool_day_data(db: Database, pool_record: dict, timestamp: str, 
+async def update_pool_day_data(db: Database, pool_record: dict, timestamp: str, 
                          amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                          amount0_abs: Decimal = ZERO_DECIMAL, 
                          amount1_abs: Decimal = ZERO_DECIMAL, 
                          fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start = get_day_id(timestamp)
+    day_id, day_start = await get_day_id(timestamp)
 
     pool_day_data_record = db[Collection.POOLS_DAY_DATA].find_one({
         'poolAddress': pool_record['poolAddress'],
@@ -110,12 +110,12 @@ def update_pool_day_data(db: Database, pool_record: dict, timestamp: str,
     return pool_day_data_record
   
 
-def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str, 
+async def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str, 
                           amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                           amount0_abs: Decimal = ZERO_DECIMAL, 
                           amount1_abs: Decimal = ZERO_DECIMAL, 
                           fees_USD: Decimal = ZERO_DECIMAL):
-    hour_id, hour_start = get_hour_id(timestamp)
+    hour_id, hour_start = await get_hour_id(timestamp)
 
     pool_hour_data_record = db[Collection.POOLS_HOUR_DATA].find_one({
         'poolAddress': pool_record['poolAddress'],
@@ -167,12 +167,13 @@ def update_pool_hour_data(db: Database, pool_record: dict, timestamp: str,
     return pool_hour_data_record
 
 
-def update_token_day_data(db: Database, token_record: dict, timestamp: str, 
+async def update_token_day_data(db: Database, token_record: dict, timestamp: str, 
                           amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                           amount_abs: Decimal = ZERO_DECIMAL, 
                           fees_USD: Decimal = ZERO_DECIMAL):
-    day_id, day_start = get_day_id(timestamp)
-    token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
+    day_id, day_start = await get_day_id(timestamp)
+    eth_price = await EthPrice.get()
+    token_price = token_record['derivedETH'].to_decimal() * eth_price
 
     token_day_data_record = db[Collection.TOKENS_DAY_DATA].find_one({
         'tokenAddress': token_record['tokenAddress'],
@@ -220,12 +221,13 @@ def update_token_day_data(db: Database, token_record: dict, timestamp: str,
     return token_day_data_record
 
 
-def update_token_hour_data(db: Database, token_record: dict, timestamp: str, 
+async def update_token_hour_data(db: Database, token_record: dict, timestamp: str, 
                            amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                            amount_abs: Decimal = ZERO_DECIMAL, 
                            fees_USD: Decimal = ZERO_DECIMAL):
-    hour_id, hour_start = get_hour_id(timestamp)
-    token_price = token_record['derivedETH'].to_decimal() * EthPrice.get()
+    hour_id, hour_start = await get_hour_id(timestamp)
+    eth_price = await EthPrice.get()
+    token_price = token_record['derivedETH'].to_decimal() * eth_price
 
     token_hour_data_record = db[Collection.TOKENS_HOUR_DATA].find_one({
         'tokenAddress': token_record['tokenAddress'],

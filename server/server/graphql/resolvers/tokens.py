@@ -61,12 +61,12 @@ async def get_tokens(
             query['tokenAddress'] = {'$in': token_in}
 
     cursor = db[Collection.TOKENS].find(query, skip=skip, limit=first)
-    cursor = add_order_by_constraint(cursor, orderBy, orderByDirection)
+    cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
 
     return [Token.from_mongo(d) for d in cursor]
 
 
-def get_token(db: Database, id: str) -> Token:
+async def get_token(db: Database, id: str) -> Token:
     query = {'tokenAddress': id}
     token = db['tokens'].find_one(query)
     return Token.from_mongo(token)

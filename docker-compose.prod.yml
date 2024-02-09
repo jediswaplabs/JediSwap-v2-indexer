@@ -36,8 +36,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: always
     command:
-    - process
+    - events
     - --env-file
     - env_mainnet
     environment:
@@ -49,6 +50,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: always
     command:
     - positions
     - --env-file
