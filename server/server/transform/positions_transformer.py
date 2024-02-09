@@ -60,30 +60,10 @@ async def handle_positions_fees(db: Database):
     processed_positions_records = 0
     positions_update_operations = []
     async for record in yield_position_records(db, Collection.POSITION_FEES):
-        query = {
-            'positionId': record['positionId'],
-            'ownerAddress': {'$ne': ZERO_ADDRESS},
-            }
-        await filter_by_the_latest_value(query)
-        position = db[Collection.POSITIONS].find_one(query)
-        if position:
-            positions_update_operations.append(
-                UpdateOne({"_id": record['_id']}, {
-                    "$set": {
-                        "token0Decimals": position['token0Decimals'],
-                        "token1Decimals": position['token1Decimals'],
-                        "processed": True,
-                        }}))
-            processed_positions_records += 1
-
-async def handle_positions_fees(db: Database, rpc_url: str):
-    processed_positions_records = 0
-    positions_update_operations = []
-    async for record in yield_position_records(db, Collection.POSITION_FEES):
-        token0_decimals , token1_decimals = get_tokens_decimals_from_position(db, rpc_url, record['positionId'])
+        token0 , token1 = await get_tokens_from_position_db(db, record['positionId'])
         position_fee_update_data = {'$set': {
-            'token0Decimals': token0_decimals,
-            'token1Decimals': token1_decimals,
+            'token0Decimals': token0['decimals'],
+            'token1Decimals': token1['decimals'],
             'processed': True,
         }}
 

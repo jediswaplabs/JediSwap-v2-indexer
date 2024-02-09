@@ -1,6 +1,6 @@
 import { Contract, RpcProvider } from "./deps.ts";
 import { nftPositionAbi } from "../abi/nft_position.ts"
-import { formatBigIntToString } from "./utils.ts";
+import { formatBigIntToAddress } from "./utils.ts";
 
 export type PositionInfo = {
   token0: string;
@@ -25,8 +25,8 @@ export async function fetchTokensFromPosition(
   }
 
   return {
-    token0: formatBigIntToString(token0),
-    token1: formatBigIntToString(token1),
+    token0: formatBigIntToAddress(token0),
+    token1: formatBigIntToAddress(token1),
   };
 }
 

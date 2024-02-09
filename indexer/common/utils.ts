@@ -3,8 +3,8 @@ import {
   Transaction
 } from "../common/deps.ts";
 
-export function formatBigIntToString(key: BigInt): string {
-  return `0x${key.toString(16).padStart(64, "0")}`
+export function formatBigIntToAddress(key: BigInt): string {
+  return `0x${key.toString(16)}`
 }
 
 export function formatFelt(key: string): string {

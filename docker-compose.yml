@@ -25,7 +25,8 @@ services:
       - run
       - --allow-env=/data/env_goerli
       - --allow-env-from-env=MONGODB_CONNECTION_STRING
-      - --allow-net=${RPC_URL}
+      - --allow-env-from-env=RPC_URL
+      - --allow-net=
       - /data/indexer/src/nft_router.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
@@ -59,7 +60,6 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       RPC_URL: ${RPC_URL}
-      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
   graphql:
     build:
