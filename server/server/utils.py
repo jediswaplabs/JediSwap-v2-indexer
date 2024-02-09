@@ -19,7 +19,7 @@ async def exponent_to_decimal(decimals: int) -> Decimal:
     return Decimal(10) ** Decimal(decimals)
 
 
-async def format_address(address: str) -> str:
+def format_address(address: str) -> str:
     return hex(int(address, 16))
 
 

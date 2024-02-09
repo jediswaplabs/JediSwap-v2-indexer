@@ -10,14 +10,16 @@ from server.graphql.resolvers.helpers import (
     add_order_by_constraint,
     WhereFilterForPoolData, 
     filter_by_pool_address,
+    filter_pools_by_token_addresses
 )
 from server.const import Collection
+from server.utils import format_address
+from server.graphql.resolvers.pools import Pool
 
 
 @strawberry.type
 class PoolDayData:
     id: str
-    poolAddress: str
 
     open: Decimal
     close: Decimal
@@ -43,6 +45,11 @@ class PoolDayData:
     volumeUSD: Decimal
 
     txCount: int
+
+    poolAddress: strawberry.Private[str]
+    @strawberry.field
+    def pool(self, info: Info) -> Pool:
+        return info.context["pool_loader"].load(self.poolAddress)
 
     @classmethod
     def from_mongo(cls, data):
@@ -79,6 +86,7 @@ async def get_pools_day_data(
     query = {}
 
     if where is not None:
+        await filter_pools_by_token_addresses(where, query, db)
         await filter_by_pool_address(where, query)
 
     cursor = db[Collection.POOLS_DAY_DATA].find(query, skip=skip, limit=first)

@@ -7,7 +7,7 @@ from pymongo.database import Database
 from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime, WhereFilterForTransaction, filter_transactions
-from server.const import Collection, ZERO_DECIMAL128
+from server.const import Collection
 from server.graphql.resolvers.pools import Pool
 
 

@@ -10,8 +10,11 @@ from server.graphql.resolvers.helpers import (
     filter_by_pool_address,
     filter_by_days_data,
     validate_period_input,
+    filter_pools_by_token_addresses
 )
 from server.const import Collection
+from server.utils import format_address
+from server.graphql.resolvers.pools import Pool
 
 
 def add_empty_pool_data(pools: dict, pool_address: str, periods: list):
@@ -23,8 +26,12 @@ def add_empty_pool_data(pools: dict, pool_address: str, periods: list):
 
 @strawberry.type
 class PoolData:
-    poolAddress: str
     period: strawberry.scalars.JSON
+
+    poolAddress: strawberry.Private[str]
+    @strawberry.field
+    def pool(self, info: Info) -> Pool:
+        return info.context["pool_loader"].load(self.poolAddress)
 
     @classmethod
     def from_mongo(cls, data):
@@ -35,15 +42,16 @@ class PoolData:
 
 
 @strawberry.input
-class WhereFilterForPoolAndPeriod:
+class WhereFilterForPoolAndPeriodAndTokens:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
     period_in: Optional[List[str]] = field(default_factory=list)
+    both_token_address_in: Optional[List[str]] = field(default_factory=list)
 
 
 async def get_pools_data(
     info: Info, first: Optional[int] = 100, skip: Optional[int] = 0, orderBy: Optional[str] = None, 
-    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPoolAndPeriod] = None
+    orderByDirection: Optional[str] = 'asc', where: Optional[WhereFilterForPoolAndPeriodAndTokens] = None
 ) -> List[PoolData]:
     db: Database = info.context['db']
 
@@ -51,6 +59,7 @@ async def get_pools_data(
 
     query = {}
     if where is not None:
+        await filter_pools_by_token_addresses(where, query, db)
         await filter_by_pool_address(where, query)
         
     cursor = db[Collection.POOLS].find(query, skip=skip, limit=first)
