@@ -8,10 +8,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from server.graphql.main import run_graphql_server
-from server.transform.events_transformer import run_events_transformer
-from server.transform.positions_transformer import run_positions_transformer
-
 
 ENV_FILE = Path(__file__).parent.parent.parent / 'env_goerli'
 
@@ -34,6 +30,11 @@ async def run():
     
     env_file = args.env_file if args.env_file else ENV_FILE
     load_dotenv(env_file)
+
+    ## Load after dotenv
+    from server.graphql.main import run_graphql_server
+    from server.transform.events_transformer import run_events_transformer
+    from server.transform.positions_transformer import run_positions_transformer
 
     mongo_url = os.environ.get('MONGODB_CONNECTION_STRING', None)
     if mongo_url is None:

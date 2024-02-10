@@ -18,7 +18,8 @@ class Collection:
     TOKENS_DAY_DATA = 'tokens_day_data'
     TOKENS_HOUR_DATA = 'tokens_hour_data'
 
-FACTORY_ADDRESS = format_address(os.environ.get('FACTORY_CONTRACT'))
+
+FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
 NFT_ROUTER = format_address(os.environ.get('NFT_ROUTER_CONTRACT'))
 
 
