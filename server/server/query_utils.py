@@ -102,7 +102,6 @@ async def get_token_decimals(token_address: str, rpc_url: str) -> int:
         try:
             result = await simple_call(token_address, "get_decimals", [], rpc_url)
         except:
-<<<<<<< HEAD
             return 0
     return result[0]
     
@@ -115,12 +114,6 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
     except Exception as e:
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise
-=======
-            try:
-                result = await contract.functions["get_decimals"].call()
-            except:
-                return 0
-        return result[0]
 
 async def get_position_from_position_id(db: Database, position_id: int) -> dict:
     query = {
@@ -149,4 +142,3 @@ async def get_tokens_from_position_db(db: Database, position_id: int) -> tuple[d
             token1 = record
 
     return token0, token1
->>>>>>> apply review comments
