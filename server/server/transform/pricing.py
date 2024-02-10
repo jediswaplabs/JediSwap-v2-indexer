@@ -5,7 +5,7 @@ from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
 from server.const import ZERO_DECIMAL128, os, ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL
-from server.query_utils import get_pool, get_tokens_from_pool
+from server.query_utils import get_pool_record, get_tokens_from_pool
 from server.utils import exponent_to_decimal, safe_div
 
 from structlog import get_logger
@@ -30,9 +30,12 @@ class EthPrice:
     
     @staticmethod
     async def get_eth_price(db: Database) -> Decimal:
-        pool = await get_pool(db, ETH_USDC_ADDRESS)
-        if pool and 'token0Price' in pool.keys() and pool['token0Price'].to_decimal() != Decimal(0):
-            return pool['token0Price'].to_decimal()
+        pool = await get_pool_record(db, ETH_USDC_ADDRESS)
+        if pool and 'token0Price' in pool.keys() and pool['token0Price'].to_decimal() != Decimal(0) and 'token1Price' in pool.keys() and pool['token1Price'].to_decimal() != Decimal(0):
+            if (pool['token0'] == ETH):
+                return pool['token1Price'].to_decimal()
+            else:
+                return pool['token0Price'].to_decimal()
         else:
             return Decimal(2500)
 
@@ -49,7 +52,7 @@ async def find_eth_per_token(db: Database, token_addr: str, rpc_url: str) -> Dec
         price_so_far = await safe_div(Decimal(1), eth_price)
     else:
         for pool_address in WHITELISTED_POOLS:
-            pool = await get_pool(db, pool_address)
+            pool = await get_pool_record(db, pool_address)
             if pool and pool['liquidity'].to_decimal() > Decimal(0):
                 token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
                 if pool['token0'] == token_addr:

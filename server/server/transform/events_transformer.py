@@ -4,6 +4,7 @@ from decimal import Decimal
 from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
+from server.graphql.resolvers.pools import get_pool
 
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
@@ -17,7 +18,7 @@ from server.transform.interval_updates import (
     update_token_hour_data
 )
 from server.transform.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
-from server.query_utils import get_pool, get_tokens_from_pool, filter_by_the_latest_value
+from server.query_utils import get_factory_record, get_pool_record, get_token_record, get_tokens_from_pool, filter_by_the_latest_value
 from server.utils import amount_after_decimals, convert_num_to_decimal128
 
 from pymongo import MongoClient, UpdateOne
@@ -79,27 +80,6 @@ async def yield_pool_data_records(db: Database) -> dict:
     for record in db[Collection.POOLS_DATA].find(records_query).sort('timestamp', 1):
         yield record
 
-
-async def get_factory_record(db: Database) -> dict:
-    factory_collection = db[Collection.FACTORIES]
-    existing_factory_record = factory_collection.find_one({'address': FACTORY_ADDRESS})
-    if existing_factory_record is None:
-        FACTORY_RECORD = {
-            'address': FACTORY_ADDRESS,
-            'txCount': 0,
-            'totalValueLockedETH': ZERO_DECIMAL128,
-            'totalValueLockedUSD': ZERO_DECIMAL128,
-            'totalVolumeETH': ZERO_DECIMAL128,
-            'totalVolumeUSD': ZERO_DECIMAL128,
-            'untrackedVolumeUSD': ZERO_DECIMAL128,
-            'totalFeesETH': ZERO_DECIMAL128,
-            'totalFeesUSD': ZERO_DECIMAL128,
-        }
-        factory_collection.insert_one(FACTORY_RECORD)
-        return FACTORY_RECORD
-    return existing_factory_record
-
-
 async def handle_initialize(*args, **kwargs):
     db = kwargs['db']
     record = kwargs['record']
@@ -108,8 +88,10 @@ async def handle_initialize(*args, **kwargs):
     del record['event']
     logger.info("handle Initialize", **record)
 
-    pool = await get_pool(db, record['poolAddress'])
+    pool = await get_pool_record(db, record['poolAddress'])
     token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
+
+    prices = await sqrt_price_x96_to_token_prices(record['sqrtPriceX96'], token0['decimals'], token1['decimals'])
 
     pool_update_data = {
         '$set': {
@@ -120,8 +102,8 @@ async def handle_initialize(*args, **kwargs):
             'totalValueLockedToken0': ZERO_DECIMAL128,
             'totalValueLockedToken1': ZERO_DECIMAL128,
             'liquidity': ZERO_DECIMAL128,
-            'token0Price': ZERO_DECIMAL128,
-            'token1Price': ZERO_DECIMAL128,
+            'token0Price': Decimal128(prices[0]),
+            'token1Price': Decimal128(prices[1]),
             'feeGrowthGlobal0X128': '0x0',
             'feeGrowthGlobal1X128': '0x0',
             'txCount': 0,
@@ -132,7 +114,8 @@ async def handle_initialize(*args, **kwargs):
 
     await EthPrice.set(db)
 
-    pool = await get_pool(db, record['poolAddress'])
+    pool = await get_pool_record(db, record['poolAddress'])
+
     await update_pool_day_data(db, pool, record['timestamp'])
     await update_pool_hour_data(db, pool, record['timestamp'])
 
@@ -160,7 +143,7 @@ async def handle_mint(*args, **kwargs):
     del record['event']
     logger.info("handle Mint", **record)
 
-    pool = await get_pool(db, record['poolAddress'])
+    pool = await get_pool_record(db, record['poolAddress'])
     token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
     amount0 = await amount_after_decimals(record['amount0'], token0['decimals'])
     amount1 = await amount_after_decimals(record['amount1'], token1['decimals'])
@@ -219,6 +202,11 @@ async def handle_mint(*args, **kwargs):
     await update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
     await update_pool_record(db, pool['_id'], pool_update_data)
     await update_factory_record(db, factory_update_data)
+
+    factory = await get_factory_record(db)
+    pool = await get_pool_record(db, record['poolAddress'])
+    token0 = await get_token_record(db, token0['tokenAddress'], rpc_url)
+    token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'])
     await update_pool_day_data(db, pool, record['timestamp'])
@@ -240,7 +228,7 @@ async def handle_burn(*args, **kwargs):
     del record['event']
     logger.info("handle Burn", **record)
 
-    pool = await get_pool(db, record['poolAddress'])
+    pool = await get_pool_record(db, record['poolAddress'])
     token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
     amount0 = await amount_after_decimals(record['amount0'], token0['decimals'])
     amount1 = await amount_after_decimals(record['amount1'], token1['decimals'])
@@ -300,6 +288,11 @@ async def handle_burn(*args, **kwargs):
     await update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
     await update_pool_record(db, pool['_id'], pool_update_data)
     await update_factory_record(db, factory_update_data)
+
+    factory = await get_factory_record(db)
+    pool = await get_pool_record(db, record['poolAddress'])
+    token0 = await get_token_record(db, token0['tokenAddress'], rpc_url)
+    token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'])
     await update_pool_day_data(db, pool, record['timestamp'])
@@ -320,7 +313,7 @@ async def handle_swap(*args, **kwargs):
     del record['event']
     logger.info("handle Swap", **record)
 
-    pool = await get_pool(db, record['poolAddress'])
+    pool = await get_pool_record(db, record['poolAddress'])
     token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
     amount0 = await amount_after_decimals(record['amount0'], token0['decimals'])
     amount1 = await amount_after_decimals(record['amount1'], token1['decimals'])
@@ -435,6 +428,11 @@ async def handle_swap(*args, **kwargs):
     await update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
     await update_pool_record(db, pool['_id'], pool_update_data)
     await update_factory_record(db, factory_update_data)
+
+    factory = await get_factory_record(db)
+    pool = await get_pool_record(db, record['poolAddress'])
+    token0 = await get_token_record(db, token0['tokenAddress'], rpc_url)
+    token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
     await update_pool_day_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)

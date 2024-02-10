@@ -7,7 +7,7 @@ from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
 from server.const import Collection, NFT_ROUTER, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
-from server.query_utils import filter_by_the_latest_value, get_token
+from server.query_utils import filter_by_the_latest_value, get_token_record
 
 from structlog import get_logger
 
@@ -24,8 +24,8 @@ async def get_tokens_decimals_from_position(db: Database, rpc_url: str, position
         token0_address = hex(result[1]['token0'])
         token1_address = hex(result[1]['token1'])
 
-        token0 = await get_token(db, token0_address, rpc_url)
-        token1 = await get_token(db, token1_address, rpc_url)
+        token0 = await get_token_record(db, token0_address, rpc_url)
+        token1 = await get_token_record(db, token1_address, rpc_url)
         return token0['decimals'], token1['decimals']
     
     return DEFAULT_DECIMALS, DEFAULT_DECIMALS
