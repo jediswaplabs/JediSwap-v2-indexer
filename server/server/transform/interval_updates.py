@@ -6,6 +6,7 @@ from pymongo.database import Database
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
 from server.transform.pricing import EthPrice
+from server.query_utils import get_factory_record, get_pool_record
 
 from pymongo import UpdateOne
 
