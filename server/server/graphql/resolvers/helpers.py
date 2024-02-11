@@ -1,9 +1,7 @@
 from dataclasses import field
 from datetime import datetime, timedelta
-from decimal import Decimal
-from typing import Optional, TypeVar, Generic, List
+from typing import Optional, List
 
-from bson import Decimal128
 from pymongo import ASCENDING, DESCENDING
 from pymongo.cursor import CursorType
 from pymongo.database import Database

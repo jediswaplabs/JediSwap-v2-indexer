@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from bson import Decimal128
+from datetime import datetime
 
 
 async def safe_div(amount0: Decimal, amount1: Decimal) -> Decimal:
@@ -29,3 +30,14 @@ async def convert_num_to_decimal128(num: int | float | Decimal) -> str:
     if not isinstance(num, Decimal128):
         num = Decimal128(num)
     return num
+
+async def get_day_id(timestamp: str) -> tuple[int, int]:
+    day_id = int(timestamp) // 86400000
+    day_start = datetime.fromtimestamp(day_id * 86400)
+    return day_id, day_start
+
+
+async def get_hour_id(timestamp: str) -> tuple[int, int]:
+    hour_id = int(timestamp) // 3600000
+    hour_start = datetime.fromtimestamp(hour_id * 3600)
+    return hour_id, hour_start
