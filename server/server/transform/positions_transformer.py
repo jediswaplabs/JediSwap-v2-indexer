@@ -1,13 +1,10 @@
-# TODO: remove file and implement this logic in the indexer
 import time
 
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
-from starknet_py.contract import Contract
-from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import Collection, NFT_ROUTER, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
-from server.query_utils import filter_by_the_latest_value, get_token_record
+from server.const import Collection, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
+from server.query_utils import filter_by_the_latest_value, get_token_record, get_position_from_position_id, get_tokens_from_position_db
 
 from structlog import get_logger
 
@@ -15,20 +12,13 @@ logger = get_logger(__name__)
 
 
 async def get_tokens_decimals_from_position(db: Database, rpc_url: str, position_id: int) -> tuple[int, int]:
-    contract = await Contract.from_address(
-        address=NFT_ROUTER,
-        provider=FullNodeClient(node_url=rpc_url),
-    )
-    if contract is not None:
-        (result, ) = await contract.functions['get_position'].call(position_id)
-        token0_address = hex(result[1]['token0'])
-        token1_address = hex(result[1]['token1'])
+    position_record = await get_position_from_position_id(db, position_id)
+    if not position_record:
+        return DEFAULT_DECIMALS, DEFAULT_DECIMALS
 
-        token0 = await get_token_record(db, token0_address, rpc_url)
-        token1 = await get_token_record(db, token1_address, rpc_url)
-        return token0['decimals'], token1['decimals']
-    
-    return DEFAULT_DECIMALS, DEFAULT_DECIMALS
+    token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
+    token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
+    return token0['decimals'], token1['decimals']
 
 
 async def yield_position_records(db: Database, collection: str) -> dict:
@@ -48,13 +38,17 @@ async def handle_positions(db: Database, rpc_url: str):
     positions_update_operations = []
     async for record in yield_position_records(db, Collection.POSITIONS):
         token0_decimals , token1_decimals = await get_tokens_decimals_from_position(db, rpc_url, record['positionId'])
+        position_update_data = {'$set': {
+            'token0Decimals': token0_decimals,
+            'token1Decimals': token1_decimals,
+            'processed': True,
+        }}
+
         positions_update_operations.append(
-            UpdateOne({"_id": record['_id']}, {
-                "$set": {
-                    "token0Decimals": token0_decimals,
-                    "token1Decimals": token1_decimals,
-                    "processed": True,
-                    }}))
+            UpdateOne(
+                {'_id': record['_id']}, 
+                position_update_data
+            ))
         processed_positions_records += 1
 
     if positions_update_operations:
@@ -66,21 +60,19 @@ async def handle_positions_fees(db: Database):
     processed_positions_records = 0
     positions_update_operations = []
     async for record in yield_position_records(db, Collection.POSITION_FEES):
-        query = {
-            'positionId': record['positionId'],
-            'ownerAddress': {'$ne': ZERO_ADDRESS},
-            }
-        await filter_by_the_latest_value(query)
-        position = db[Collection.POSITIONS].find_one(query)
-        if position:
-            positions_update_operations.append(
-                UpdateOne({"_id": record['_id']}, {
-                    "$set": {
-                        "token0Decimals": position['token0Decimals'],
-                        "token1Decimals": position['token1Decimals'],
-                        "processed": True,
-                        }}))
-            processed_positions_records += 1
+        token0 , token1 = await get_tokens_from_position_db(db, record['positionId'])
+        position_fee_update_data = {'$set': {
+            'token0Decimals': token0['decimals'],
+            'token1Decimals': token1['decimals'],
+            'processed': True,
+        }}
+
+        positions_update_operations.append(
+            UpdateOne(
+                {'_id': record['_id']}, 
+                position_fee_update_data
+                ))
+        processed_positions_records += 1
 
     if positions_update_operations:
         db[Collection.POSITION_FEES].bulk_write(positions_update_operations)

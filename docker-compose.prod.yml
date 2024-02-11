@@ -1,7 +1,6 @@
 version: '3.6'
 
 services:
-
   factory:
     image: quay.io/apibara/sink-mongo:0.5.3
     volumes:
@@ -25,12 +24,15 @@ services:
       - run
       - --allow-env=/data/env_mainnet
       - --allow-env-from-env=MONGODB_CONNECTION_STRING
+      - --allow-env-from-env=RPC_URL
+      - --allow-net=
       - /data/indexer/src/nft_router.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
       SINK_ID: nft_router
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+      RPC_URL: ${RPC_URL}
 
   event_processor:
     build:
@@ -38,11 +40,11 @@ services:
       dockerfile: Dockerfile
     restart: always
     command:
-    - events
-    - --env-file
-    - env_mainnet
+      - events
+      - --env-file
+      - env_mainnet
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
@@ -52,11 +54,11 @@ services:
       dockerfile: Dockerfile
     restart: always
     command:
-    - positions
-    - --env-file
-    - env_mainnet
+      - positions
+      - --env-file
+      - env_mainnet
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
@@ -66,12 +68,12 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-    - 8000:8000
+      - 8000:8000
     command:
-    - graphql
-    - --env-file
-    - env_mainnet
+      - graphql
+      - --env-file
+      - env_mainnet
     environment:
-      PYTHONUNBUFFERED: "1"
+      PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
