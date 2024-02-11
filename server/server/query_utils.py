@@ -1,7 +1,8 @@
 from pymongo.database import Database
-from typing import List, Union
+from typing import List, Optional
 
 from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
+from server.utils import amount_after_decimals, get_hour_id
 
 from starknet_py.contract import ContractFunction
 from starknet_py.net.client_models import Call
@@ -43,8 +44,8 @@ async def get_pool_record(db: Database, pool_address: str) -> dict:
     await filter_by_the_latest_value(query)
     return pools_collection.find_one(query)
 
-async def get_token_record(db: Database, token_address: str, rpc_url: str) -> dict:
-    logger.info("Getting token", token_address=token_address, rpc_url=rpc_url)
+async def get_token_record(db: Database, token_address: str, rpc_url: Optional[str] = None) -> dict:
+    # logger.info("Getting token", token_address=token_address, rpc_url=rpc_url)
     tokens_collection = db[Collection.TOKENS]
     query = {'tokenAddress': token_address}
     existing_token_record = tokens_collection.find_one(query)
@@ -63,6 +64,33 @@ async def get_token_record(db: Database, token_address: str, rpc_url: str) -> di
             tokens_collection.insert_one(TOKEN_RECORD)
             return TOKEN_RECORD
     return existing_token_record
+
+async def get_token_hour_record(db: Database, token_address: str, hourId: int) -> dict:
+    # consider adding a cache mechanism
+    pools_collection = db[Collection.POOLS]
+    query = {'tokenAddress': token_address, 'hourId': hourId}
+    return db[Collection.TOKENS_HOUR_DATA].find_one(query)
+
+
+async def get_transaction_value_data(db, key) -> dict:
+    pool_record = await get_pool_record(db, key[0])
+    token0_record = await get_token_record(db, pool_record['token0'])
+    token1_record = await get_token_record(db, pool_record['token1'])
+    hour_id, _ = await get_hour_id(key[1])
+    token0_hour_data = await get_token_hour_record(db, token0_record['tokenAddress'], hour_id)
+    token1_hour_data = await get_token_hour_record(db, token1_record['tokenAddress'], hour_id)
+    price0USD = token0_hour_data['close'].to_decimal()
+    price1USD = token1_hour_data['close'].to_decimal()
+    amount0 = await amount_after_decimals(abs(key[3]), token0_record['decimals'])
+    amount1 = await amount_after_decimals(abs(key[4]), token1_record['decimals'])
+    if (key[2] == 'Swap'):
+        if (key[3] > 0):
+            tx_value_usd = amount0 * price0USD
+        else:
+            tx_value_usd = amount1 * price1USD
+    else:
+        tx_value_usd = amount0 * price0USD + amount1 * price1USD
+    return {"price0USD": str(price0USD), "price1USD": str(price1USD), "txValueUSD": str(tx_value_usd)}
 
 
 async def get_tokens_from_pool(db: Database, existing_pool: dict, rpc_url: str) -> tuple[dict, dict]:

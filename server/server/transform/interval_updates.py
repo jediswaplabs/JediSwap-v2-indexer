@@ -1,26 +1,13 @@
 from decimal import Decimal
-from datetime import datetime
 
 from bson import Decimal128
 from pymongo.database import Database
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
+from server.utils import get_day_id, get_hour_id
 from server.transform.pricing import EthPrice
-from server.query_utils import get_factory_record, get_pool_record
 
 from pymongo import UpdateOne
-
-
-async def get_day_id(timestamp: str) -> tuple[int, int]:
-    day_id = int(timestamp) // 86400000
-    day_start = datetime.fromtimestamp(day_id * 86400)
-    return day_id, day_start
-
-
-async def get_hour_id(timestamp: str) -> tuple[int, int]:
-    hour_id = int(timestamp) // 3600000
-    hour_start = datetime.fromtimestamp(hour_id * 3600)
-    return hour_id, hour_start
 
 
 async def update_factory_day_data(db: Database, factory_record: dict, timestamp: str, 

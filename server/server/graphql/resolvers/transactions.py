@@ -5,6 +5,7 @@ from typing import List, Optional
 import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
+from strawberry.scalars import JSON
 
 from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime, WhereFilterForTransaction, filter_transactions
 from server.const import Collection
@@ -20,12 +21,18 @@ class Transaction:
     amount0: Decimal
     amount1: Decimal
 
+    timestamp: strawberry.Private[str]
     datetime: dt.datetime
 
     poolAddress: strawberry.Private[str]
+    
     @strawberry.field
     def pool(self, info: Info) -> Pool:
         return info.context["pool_loader"].load(self.poolAddress)
+    
+    @strawberry.field
+    def pricesUSD(self, info: Info) -> JSON:
+        return info.context["transaction_value_loader"].load((self.poolAddress, self.timestamp, self.txType, self.amount0, self.amount1))
 
     @classmethod
     def from_mongo(cls, data):
@@ -33,6 +40,7 @@ class Transaction:
             txHash=data['tx_hash'],
             txType=data['event'],
             txSender=data['tx_sender'],
+            timestamp=data['timestamp'],
             datetime=convert_timestamp_to_datetime(data['timestamp']),
             amount0=Decimal(data['amount0']),
             amount1=Decimal(data['amount1']),
