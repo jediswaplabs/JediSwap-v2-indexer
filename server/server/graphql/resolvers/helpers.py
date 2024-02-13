@@ -74,6 +74,8 @@ async def add_block_constraint(query: dict, block: Optional[BlockFilter]):
 async def add_order_by_constraint(cursor: CursorType, orderBy: Optional[str] = None, 
                             orderByDirection: Optional[str] = 'asc') -> CursorType:
     if orderBy:
+        if orderBy == 'datetime':
+            orderBy = 'timestamp'
         if orderByDirection == 'asc':
             cursor = cursor.sort(orderBy, ASCENDING)
         else:
