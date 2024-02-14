@@ -142,31 +142,3 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
     except Exception as e:
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise
-
-async def get_position_from_position_id(db: Database, position_id: int) -> dict:
-    query = {
-        'positionId': position_id,
-        'ownerAddress': {'$ne': ZERO_ADDRESS},
-    }
-    await filter_by_the_latest_value(query)
-    return db[Collection.POSITIONS].find_one(query)
-
-async def get_tokens_from_position_db(db: Database, position_id: int) -> tuple[dict | None, dict | None]:
-    token0, token1 = None, None
-    position_record = await get_position_from_position_id(db, position_id)
-
-    query = {
-        'tokenAddress': {
-            '$in': [
-                position_record['token0Address'],
-                position_record['token1Address'],
-            ]
-        }
-    }
-    for record in db[Collection.TOKENS].find(query):
-        if record['tokenAddress'] == position_record['token0Address']:
-            token0 = record
-        elif record['tokenAddress'] == position_record['token1Address']:
-            token1 = record
-
-    return token0, token1
