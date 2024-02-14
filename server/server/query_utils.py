@@ -1,7 +1,7 @@
 from pymongo.database import Database
 from typing import List, Optional
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
+from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, ZERO_ADDRESS
 from server.utils import amount_after_decimals, get_hour_id
 
 from starknet_py.contract import ContractFunction

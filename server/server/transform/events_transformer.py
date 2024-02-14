@@ -40,6 +40,7 @@ class EventTracker:
     mint_count = 0
     swap_count = 0
     burn_count = 0
+    pool_addresses_to_update_fee_growth = set()
 
 
 async def update_tokens_records(db: Database, token0_id: str, token1_id: str, token0_update_data: dict, token1_update_data: dict):
@@ -418,12 +419,7 @@ async def handle_swap(*args, **kwargs):
     token1_update_data['$set']['totalValueLocked'] = Decimal128(token1_totalValueLocked)
     token1_update_data['$set']['totalValueLockedUSD'] = Decimal128(token1_totalValueLocked * token1_derivedETH * eth_price)
 
-    contract = await Contract.from_address(address=record['poolAddress'], provider=FullNodeClient(node_url=rpc_url))
-    if contract is not None:
-        (fee_growth_global_0_X128,) = await contract.functions["get_fee_growth_global_0_X128"].call()
-        pool_update_data['$set']['feeGrowthGlobal0X128'] = hex(fee_growth_global_0_X128)
-        (fee_growth_global_1_X128,) = await contract.functions["get_fee_growth_global_1_X128"].call()
-        pool_update_data['$set']['feeGrowthGlobal1X128'] = hex(fee_growth_global_1_X128)
+    EventTracker.pool_addresses_to_update_fee_growth.add(record['poolAddress'])
 
     await update_tokens_records(db, token0['_id'], token1['_id'], token0_update_data, token1_update_data)
     await update_pool_record(db, pool['_id'], pool_update_data)
@@ -443,6 +439,21 @@ async def handle_swap(*args, **kwargs):
     await update_token_hour_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
     
     EventTracker.swap_count += 1
+
+async def update_pool_fee_growth(*args, **kwargs):
+    db = kwargs['db']
+    rpc_url = kwargs['rpc_url']
+    for pool_address in EventTracker.pool_addresses_to_update_fee_growth:
+        pool_update_data = dict()
+        pool_update_data['$set'] = dict()
+        pool = await get_pool_record(db, pool_address)
+        contract = await Contract.from_address(address=pool_address, provider=FullNodeClient(node_url=rpc_url))
+        if contract is not None:
+            (fee_growth_global_0_X128,) = await contract.functions["get_fee_growth_global_0_X128"].call()
+            pool_update_data['$set']['feeGrowthGlobal0X128'] = hex(fee_growth_global_0_X128)
+            (fee_growth_global_1_X128,) = await contract.functions["get_fee_growth_global_1_X128"].call()
+            pool_update_data['$set']['feeGrowthGlobal1X128'] = hex(fee_growth_global_1_X128)
+            await update_pool_record(db, pool['_id'], pool_update_data)
 
 
 EVENT_TO_FUNCTION_MAP = {
@@ -471,15 +482,18 @@ async def process_events(mongo_url: str, mongo_database: Database, rpc_url: str)
                 )
         if processed_records:
             db[Collection.POOLS_DATA].bulk_write(processed_records)
+        await update_pool_fee_growth(db=db, rpc_url=rpc_url)
 
     logger.info(f'Successfully processed {EventTracker.initialize_count} Initialize events')
     logger.info(f'Successfully processed {EventTracker.mint_count} Mint events')
     logger.info(f'Successfully processed {EventTracker.swap_count} Swap events')
     logger.info(f'Successfully processed {EventTracker.burn_count} Burn events')
+    logger.info(f'Successfully updated {len(EventTracker.pool_addresses_to_update_fee_growth)} pools fee growth')
     EventTracker.initialize_count = 0
     EventTracker.mint_count = 0
     EventTracker.swap_count = 0
     EventTracker.burn_count = 0
+    EventTracker.pool_addresses_to_update_fee_growth = set()
 
 
 async def run_events_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
