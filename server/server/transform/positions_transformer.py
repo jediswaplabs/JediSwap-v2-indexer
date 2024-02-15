@@ -31,7 +31,7 @@ async def handle_positions(db: Database, rpc_url: str):
         token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
         position_update_data = {'$set': {
             'token0Decimals': token0['decimals'],
-            'token1Decimals': token0['decimals'],
+            'token1Decimals': token1['decimals'],
             'processed': True,
         }}
 
@@ -55,7 +55,7 @@ async def handle_positions_fees(db: Database, rpc_url: str):
         token1 = await get_token_record(db, position_fee_record['token1Address'], rpc_url)
         position_fee_update_data = {'$set': {
             'token0Decimals': token0['decimals'],
-            'token1Decimals': token0['decimals'],
+            'token1Decimals': token1['decimals'],
             'processed': True,
         }}
 

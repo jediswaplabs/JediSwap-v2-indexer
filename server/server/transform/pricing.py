@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 
 
 Q192 = Decimal(2 ** 192)
-MINIMUM_ETH_LOCKED = Decimal(60)
+MINIMUM_ETH_LOCKED = Decimal(1)
 
 
 class EthPrice:

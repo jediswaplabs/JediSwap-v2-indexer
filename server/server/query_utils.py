@@ -67,7 +67,6 @@ async def get_token_record(db: Database, token_address: str, rpc_url: Optional[s
 
 async def get_token_hour_record(db: Database, token_address: str, hourId: int) -> dict:
     # consider adding a cache mechanism
-    pools_collection = db[Collection.POOLS]
     query = {'tokenAddress': token_address, 'hourId': hourId}
     return db[Collection.TOKENS_HOUR_DATA].find_one(query)
 
