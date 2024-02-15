@@ -20,7 +20,6 @@ class Collection:
 
 
 FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
-NFT_ROUTER = format_address(os.environ.get('NFT_ROUTER_CONTRACT'))
 
 
 # mainnet contracts

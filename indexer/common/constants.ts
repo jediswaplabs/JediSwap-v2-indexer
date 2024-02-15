@@ -41,10 +41,10 @@ export const SELECTOR_KEYS = {
 export const FACTORY_CONTRACT = Deno.env.get(
   "FACTORY_CONTRACT"
 ) as string;
-export const NFT_ROUTER_CONTRACT = Deno.env.get(
-  "NFT_ROUTER_CONTRACT"
+const NFT_ROUTER_CONTRACTS_STRING = Deno.env.get(
+  "NFT_ROUTER_CONTRACTS"
 ) as string;
-
+export const NFT_ROUTER_CONTRACTS = NFT_ROUTER_CONTRACTS_STRING.split(",");
 export const INDEX_FROM_BLOCK = Number(Deno.env.get(
   "INDEX_FROM_BLOCK"))
 export const STREAM_URL = Deno.env.get(
