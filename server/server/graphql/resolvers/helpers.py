@@ -49,6 +49,7 @@ class WhereFilterForPoolData:
 class WhereFilterForTransaction:
     pool_address: Optional[str] = None
     pool_address_in: Optional[List[str]] = field(default_factory=list)
+    both_token_address_in: Optional[List[str]] = field(default_factory=list)
     tx_type_in: Optional[List[str]] = field(default_factory=lambda: ['Swap', 'Burn', 'Mint'])
     tx_sender: Optional[str] = None
 

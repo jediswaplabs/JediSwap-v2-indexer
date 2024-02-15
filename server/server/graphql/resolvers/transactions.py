@@ -7,7 +7,7 @@ from pymongo.database import Database
 from strawberry.types import Info
 from strawberry.scalars import JSON
 
-from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime, WhereFilterForTransaction, filter_transactions
+from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime, WhereFilterForTransaction, filter_transactions, filter_pools_by_token_addresses
 from server.const import Collection
 from server.graphql.resolvers.pools import Pool
 
@@ -55,7 +55,9 @@ async def get_transactions(
     db: Database = info.context['db']
     query = {"processed": True}
 
-    await filter_transactions(where, query)
+    if where is not None:
+        await filter_pools_by_token_addresses(where, query, db)
+        await filter_transactions(where, query)
 
     cursor = db[Collection.POOLS_DATA].find(query, skip=skip, limit=first)
     cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
