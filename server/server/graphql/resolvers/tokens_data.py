@@ -12,6 +12,7 @@ from server.graphql.resolvers.helpers import (
     validate_period_input,
 )
 from server.const import Collection
+from server.graphql.resolvers.tokens import Token
 
 
 async def add_empty_token_data(tokens: dict, token_address: str, periods: list):
@@ -24,8 +25,12 @@ async def add_empty_token_data(tokens: dict, token_address: str, periods: list):
 
 @strawberry.type
 class TokenData:
-    tokenAddress: str
     period: strawberry.scalars.JSON
+
+    tokenAddress: strawberry.Private[str]
+    @strawberry.field
+    def token(self, info: Info) -> Token:
+        return info.context["token_loader"].load(self.tokenAddress)
 
     @classmethod
     def from_mongo(cls, data):
@@ -79,6 +84,7 @@ async def get_tokens_data(
                     "feesUSD": {"$sum": "$feesUSD"},
                     "totalValueLocked": {"$last": "$totalValueLocked"},
                     "totalValueLockedUSD": {"$last": "$totalValueLockedUSD"},
+                    "totalValueLockedUSDFirst": {"$first": "$totalValueLockedUSD"},
                     "derivedETH": {"$last": "$derivedETH"},
                     "untrackedVolumeUSD": {"$sum": "$untrackedVolumeUSD"},
                     "volume": {"$sum": "$volume"},
@@ -99,6 +105,7 @@ async def get_tokens_data(
                 'feesUSD': str(record['feesUSD'].to_decimal()),
                 'totalValueLocked': str(record['totalValueLocked'].to_decimal()),
                 'totalValueLockedUSD': str(record['totalValueLockedUSD'].to_decimal()),
+                'totalValueLockedUSDFirst': str(record['totalValueLockedUSDFirst'].to_decimal()),
                 'derivedETH': str(record['derivedETH'].to_decimal()),
                 'untrackedVolumeUSD': str(record['untrackedVolumeUSD'].to_decimal()),
                 'volume': str(record['volume'].to_decimal()),
