@@ -22,7 +22,7 @@ def async_command(f):
 @async_command
 async def run():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['events', 'positions', 'graphql'], 
+    parser.add_argument('action', choices=['events', 'positions', 'leaderboard', 'graphql'], 
                         help='Choose action: events or positions or graphql')
     parser.add_argument('--env-file', help='Run with mainnet config')
 
@@ -34,6 +34,7 @@ async def run():
     ## Load after dotenv
     from server.graphql.main import run_graphql_server
     from server.transform.events_transformer import run_events_transformer
+    from server.transform.leaderboard_transformer import run_leaderboard_transformer
     from server.transform.positions_transformer import run_positions_transformer
 
     mongo_url = os.environ.get('MONGODB_CONNECTION_STRING', None)
@@ -52,5 +53,7 @@ async def run():
         await run_events_transformer(mongo_url, mongo_database, rpc_url)
     elif args.action == 'positions':
         await run_positions_transformer(mongo_url, mongo_database, rpc_url)
+    elif args.action == 'leaderboard':
+        await run_leaderboard_transformer(mongo_url, mongo_database, rpc_url)
     elif args.action == 'graphql':
         await run_graphql_server(mongo_url, mongo_database)
