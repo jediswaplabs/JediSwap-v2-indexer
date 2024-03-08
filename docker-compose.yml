@@ -62,6 +62,20 @@ services:
       RPC_URL: ${RPC_URL}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
 
+  leaderboard_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    command:
+      - leaderboard
+      - --env-file
+      - env_goerli
+    environment:
+      PYTHONUNBUFFERED: '1'
+      RPC_URL: ${RPC_URL}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+      
   graphql:
     build:
       context: .

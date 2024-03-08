@@ -12,8 +12,8 @@ import {
   STREAM_URL,
 } from "../common/constants.ts";
 import {
-  fetchTokensFromPosition,
-} from "../common/position_tokens.ts";
+  fetchAdditionalDetailsFromPosition,
+} from "../common/position_details.ts";
 import {
   formatFelt, formatU256, senderAddress
 } from "../common/utils.ts";
@@ -147,12 +147,15 @@ export default async function transform({ header, events }: Block) {
   for (const inputEvent of output) {
     const positionId = inputEvent.entity.positionId
     const positionAddress = inputEvent.entity.positionAddress;
-    console.log(`Fetching tokens for position: ${positionId} ...`);
-    const positionInfo = await fetchTokensFromPosition(positionAddress, positionId);
+    console.log(`Fetching additonal details for position: ${positionId} ...`);
+    const positionInfo = await fetchAdditionalDetailsFromPosition(positionAddress, positionId);
     if (positionInfo) {
       inputEvent.update["$set"].token0Address = positionInfo.token0;
       inputEvent.update["$set"].token1Address = positionInfo.token1;
-      console.log(`Tokens for position ${positionId} updated`);
+      inputEvent.update["$set"].tickLower = positionInfo.tickLower;
+      inputEvent.update["$set"].tickUpper = positionInfo.tickUpper;
+      inputEvent.update["$set"].poolFee = positionInfo.poolFee;
+      console.log(`Position ${positionId} updated with additional details`);
     }
   }
   

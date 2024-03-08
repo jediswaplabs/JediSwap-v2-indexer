@@ -1,13 +1,21 @@
 import { Contract, RpcProvider } from "./deps.ts";
 import { nftPositionAbi } from "../abi/nft_router.ts"
-import { formatBigIntToAddress } from "./utils.ts";
+import { formatBigIntToAddress, formatI32 } from "./utils.ts";
 
 export type PositionInfo = {
   token0: string;
   token1: string;
+  tickLower: Number;
+  tickUpper: Number;
+  poolFee: Number;
 };
 
-export async function fetchTokensFromPosition(
+type Tick = {
+  mag: BigInt;
+  sign: boolean;
+};
+
+export async function fetchAdditionalDetailsFromPosition(
   positionAddress: string,
   positionId: Number
 ): Promise<PositionInfo | undefined> {
@@ -17,7 +25,8 @@ export async function fetchTokensFromPosition(
     await Promise.all([
       safeCall<{ output: Array<string> }>(contract.get_position(positionId), { output: undefined }),
   ]);
-  const { token0, token1 } = output[0]["1"]
+  const { tick_lower, tick_upper } = output[0]["0"]
+  const { token0, token1, fee } = output[0]["1"]
 
   if (!token0 || !token1) {
     console.log('Tokens not found')
@@ -27,6 +36,9 @@ export async function fetchTokensFromPosition(
   return {
     token0: formatBigIntToAddress(token0),
     token1: formatBigIntToAddress(token1),
+    tickLower: formatTick(tick_lower),
+    tickUpper: formatTick(tick_upper),
+    poolFee: Number(fee),
   };
 }
 
@@ -56,4 +68,9 @@ const provider = new RpcProvider({
   
 function positionContract(positionAddress: string) {
   return new Contract(nftPositionAbi, positionAddress, provider);
+}
+
+function formatTick(tick: Tick) {
+  const sign = tick.sign ? '1' : '0';
+  return formatI32(tick.mag.toString(), sign);
 }

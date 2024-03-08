@@ -17,6 +17,8 @@ class Collection:
     POOLS_HOUR_DATA = 'pools_hour_data'
     TOKENS_DAY_DATA = 'tokens_day_data'
     TOKENS_HOUR_DATA = 'tokens_hour_data'
+    LP_LEADERBOARD = 'lp_leaderboard'
+    LP_LEADERBOARD_SNAPSHOT = 'lp_leaderboard_snapshot'
 
 
 FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
@@ -32,6 +34,7 @@ if os.environ.get('NETWORK') == 'mainnet':
     WSTETH = "0x42b8f0484674ca266ac5d08e4ac6a3fe65bd3129795def2dca5c34ecc5f96d2"
     LORDS = "0x124aeb495b947201f5fac96fd1138e326ad86195b98df6dec9009158a533b49"
     LUSD = "0x70a76fd48ca0ef910631754d77dd822147fe98a569b826ec85e3c33fde586ac"
+    STRK = '0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
 
     ETH_USDC_ADDRESS = '0x7015a6822f109a2e41d25dd6878fe161ae9bb13eeb87e62de42a3158a64db28'
     WHITELISTED_POOLS = []  # todo
@@ -43,6 +46,7 @@ else:
     DAI = '0x3e85bfbb8e2a42b7bead9e88e9a1b19dbccf661471061807292120462396ec9'
     USDT = '0x6a8f0e0d3bf9a6f049ce3fcbad7e26cbd0ceb3f0bfc6160f4ab7bdd7985b0e3' # not sure
     WBTC = '0x12d537dc323c439dc65c976fad242d5610d27cfb5f31689a0a319b8be7f3d56'
+    STRK = ''
 
     ETH_USDC_ADDRESS = '0xcc2f78f58cd3d242fc7b0661452a7e275f701516459a46b3792616fc270bed'
 
@@ -57,4 +61,5 @@ ZERO_DECIMAL128 = Decimal128(Decimal(0))
 ZERO_DECIMAL = Decimal(0)
 
 DEFAULT_DECIMALS = 18
+MAX_UINT128 = 2 ** 128 - 1
 TIME_INTERVAL = 60  # in seconds
