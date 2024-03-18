@@ -117,15 +117,6 @@ async def get_position_fee_by_position_id(db: Database, position_id: str) -> dic
     return db[Collection.POSITION_FEES].find_one(query)
 
 
-async def get_pool_by_tokens(db: Database, token0_address: str, token1_address: str, pool_fee: int) -> dict:
-    query = {
-        'token0': token0_address,
-        'token1': token1_address,
-        'fee': pool_fee
-    }
-    return db[Collection.POOLS].find_one(query)
-
-
 async def get_token_name(token_address: str, rpc_url: str) -> str:
     try:
         result = await simple_call(token_address, "name", [], rpc_url)
