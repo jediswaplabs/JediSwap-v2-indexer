@@ -4,12 +4,11 @@ import os
 import time
 
 from bson import Decimal128
-from pymongo import MongoClient, UpdateOne, InsertOne
+from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
 from server.const import Collection, ZERO_DECIMAL, ZERO_DECIMAL128, MAX_UINT128, ETH, USDC, USDT, STRK
-from server.query_utils import filter_by_the_latest_value, get_pool_by_tokens, simulate_tx, \
-    get_position_fee_by_position_id
+from server.query_utils import filter_by_the_latest_value, simulate_tx, get_position_fee_by_position_id
 from server.utils import get_hour_id, get_day_id, format_address, amount_after_decimals
 
 from starknet_py.contract import ContractFunction
@@ -17,9 +16,12 @@ from starknet_py.net.client_models import TransactionType
 from starknet_py.net.full_node_client import FullNodeClient
 from structlog import get_logger
 
+
 logger = get_logger(__name__)
 
+
 DAY_INTERVAL = 86400  # 1 day
+TIME_VESTED_CONST = Decimal(15)  # in days
 LP_CONST = Decimal(0.8)
 
 
@@ -32,19 +34,6 @@ def get_pool_boost(token0_address: str, token1_address) -> Decimal:
         return Decimal(3)
     elif {token0_address, token1_address} == {STRK, USDC}:
         return Decimal(3)
-    else:
-        return Decimal(1)
-
-
-def get_streak_boost(streak_level: int) -> Decimal:
-    if streak_level >= 60:
-        return Decimal(1.5)
-    elif 30 <= streak_level <= 59:
-        return Decimal(1.3)
-    elif 15 <= streak_level <= 29:
-        return Decimal(1.2)
-    elif 7 <= streak_level <= 14:
-        return Decimal(1.1)
     else:
         return Decimal(1)
 
@@ -107,18 +96,6 @@ async def simulate_collect_tx(rpc_url: str, position_record: dict) -> tuple[Deci
         return ZERO_DECIMAL, ZERO_DECIMAL
 
 
-async def get_pool_volume_by_day_id(db: Database, day_id: int, pool_address: dict) -> Decimal:
-    query = {
-        'dayId': day_id,
-        'poolAddress': pool_address,
-    }
-    pool_day_data = db[Collection.POOLS_DAY_DATA].find_one(query)
-    if not pool_day_data:
-        logger.info(f'Pool volume for {pool_address} and day id {day_id} not found')
-        pool_day_data = {}
-    return pool_day_data.get('volumeUSD', ZERO_DECIMAL128).to_decimal()
-
-
 async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: str) -> Decimal:
     query = {
         'hourId': hour_id,
@@ -126,7 +103,7 @@ async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: 
     }
     token_hour_data = db[Collection.TOKENS_HOUR_DATA].find_one(query)
     if not token_hour_data:
-        logger.info(f'Token price for {token_address} and hourd id {hour_id} not found')
+        logger.info(f'Token price for {token_address} and hour id {hour_id} not found')
         token_hour_data = {}
     return token_hour_data.get('priceUSD', ZERO_DECIMAL128).to_decimal()
 
@@ -152,8 +129,10 @@ async def handle_lp_leaderboard(db: Database, rpc_url: str):
     async for position_record in yield_position_records(db):
         simulated_tx_fees_usd = 0
         collected_fees_usd = 0
+        total_liquidity = Decimal(position_record.get('liquidity', 0))
+        previous_day_total_liquidity = position_record.get('previousDayLiquidity', ZERO_DECIMAL128).to_decimal()
 
-        if Decimal(position_record.get('liquidity', 0)) > ZERO_DECIMAL:
+        if total_liquidity > ZERO_DECIMAL:
             token0_fees, token1_fees = await simulate_collect_tx(rpc_url, position_record)
 
             if token0_fees and token1_fees:
@@ -183,32 +162,23 @@ async def handle_lp_leaderboard(db: Database, rpc_url: str):
 
             collected_fees_usd = token0_fees_usd + token1_fees_usd
 
-        day_id, _ = await get_day_id(position_record['timestamp'])
-        pool = await get_pool_by_tokens(db, position_record['token0Address'], position_record['token1Address'],
-                                        position_record['poolFee'])
-        pool_current_volume = await get_pool_volume_by_day_id(db, day_id, pool['poolAddress'])
-        pool_previous_day_volume = await get_pool_volume_by_day_id(db, day_id - 1, pool['poolAddress'])
-
-        current_lp_streak = position_record.get('currentLpStreak', 0)
+        time_vested_value = position_record.get('timeVestedValue', 0)
         total_fees_usd = position_record.get('totalFeesUSD', ZERO_DECIMAL128).to_decimal()
-        previous_day_fees_usd = position_record.get('previousDayFeesUSD', ZERO_DECIMAL128).to_decimal()
 
         current_fees_usd = simulated_tx_fees_usd + collected_fees_usd - total_fees_usd
         if current_fees_usd < ZERO_DECIMAL:
             current_fees_usd = ZERO_DECIMAL
 
-        if pool_current_volume > ZERO_DECIMAL and (
-                previous_day_fees_usd > LP_CONST * current_fees_usd * (
-                pool_previous_day_volume / pool_current_volume)
-        ):
-            current_lp_streak += 1
+        if total_liquidity >= previous_day_total_liquidity:
+            time_vested_value += 1
         else:
-            current_lp_streak = 1
+            time_vested_value = 1
 
         position_update_data = {
             'totalFeesUSD': Decimal128(current_fees_usd + total_fees_usd),
             'previousDayFeesUSD': Decimal128(current_fees_usd),
-            'currentLpStreak': current_lp_streak,
+            'previousDayLiquidity': Decimal128(total_liquidity),
+            'timeVestedValue': time_vested_value,
         }
 
         positions_update_operations.append(
@@ -226,14 +196,13 @@ async def handle_lp_leaderboard(db: Database, rpc_url: str):
 async def calculate_lp_leaderboard(db: Database):
     users_result = defaultdict(int)
     async for position_record in yield_position_records(db, points_calculation=True):
-        current_lp_streak = position_record.get('currentLpStreak', 0)
         total_fees_usd = position_record.get('totalFeesUSD', ZERO_DECIMAL128).to_decimal()
         owner_address = position_record['ownerAddress']
 
         pool_boost = get_pool_boost(position_record['token0Address'], position_record['token1Address'])
-        streak_boost = get_streak_boost(current_lp_streak)
+        position_time_vested = position_record['timeVestedValue'] / TIME_VESTED_CONST
 
-        points = total_fees_usd * pool_boost * streak_boost * Decimal(1000)
+        points = total_fees_usd * pool_boost * position_time_vested * Decimal(1000)
         users_result[owner_address] += points
 
     current_timestamp = int(time.time() * 1000)
