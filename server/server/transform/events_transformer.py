@@ -4,7 +4,6 @@ from decimal import Decimal
 from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
-from server.graphql.resolvers.pools import get_pool
 
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
@@ -12,6 +11,7 @@ from starknet_py.net.full_node_client import FullNodeClient
 from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, TIME_INTERVAL
 from server.transform.interval_updates import (
     update_factory_day_data,
+    update_factory_hour_data,
     update_pool_day_data,
     update_pool_hour_data,
     update_token_day_data,
@@ -210,6 +210,7 @@ async def handle_mint(*args, **kwargs):
     token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'])
+    await update_factory_hour_data(db, factory, record['timestamp'])
     await update_pool_day_data(db, pool, record['timestamp'])
     await update_pool_hour_data(db, pool, record['timestamp'])
     await update_token_day_data(db, token0, record['timestamp'])
@@ -296,6 +297,7 @@ async def handle_burn(*args, **kwargs):
     token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'])
+    await update_factory_hour_data(db, factory, record['timestamp'])
     await update_pool_day_data(db, pool, record['timestamp'])
     await update_pool_hour_data(db, pool, record['timestamp'])
     await update_token_hour_data(db, token0, record['timestamp'])
@@ -431,6 +433,7 @@ async def handle_swap(*args, **kwargs):
     token1 = await get_token_record(db, token1['tokenAddress'], rpc_url)
     
     await update_factory_day_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
+    await update_factory_hour_data(db, factory, record['timestamp'], amount_total_ETH_tracked, amount_total_USD_tracked, fees_USD)
     await update_pool_day_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
     await update_pool_hour_data(db, pool, record['timestamp'], amount_total_USD_tracked, amount0_abs, amount1_abs, fees_USD)
     await update_token_day_data(db, token0, record['timestamp'], amount_total_USD_tracked, amount0_abs, fees_USD)

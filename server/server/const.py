@@ -13,6 +13,7 @@ class Collection:
     TOKENS = 'tokens'
     FACTORIES = 'factories'
     FACTORIES_DAY_DATA = 'factories_day_data'
+    FACTORIES_HOUR_DATA = 'factories_hour_data'
     POOLS_DAY_DATA = 'pools_day_data'
     POOLS_HOUR_DATA = 'pools_hour_data'
     TOKENS_DAY_DATA = 'tokens_day_data'

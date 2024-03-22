@@ -41,6 +41,37 @@ async def update_factory_day_data(db: Database, factory_record: dict, timestamp:
     return factory_day_data_record
 
 
+async def update_factory_hour_data(db: Database, factory_record: dict, timestamp: str, 
+                                   amount_total_ETH_tracked: Decimal = ZERO_DECIMAL, 
+                                   amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
+                                   fees_USD: Decimal = ZERO_DECIMAL):
+    hour_id, hour_start = await get_hour_id(timestamp)
+
+    factory_hour_data_record = db[Collection.FACTORIES_HOUR_DATA].find_one({'hourId': hour_id})
+    if not factory_hour_data_record:
+        factory_hour_data_record = {
+            'hourId': hour_id,
+            'periodStartUnix': hour_start,
+            'volumeETH': ZERO_DECIMAL128,
+            'volumeUSD': ZERO_DECIMAL128,
+            'feesUSD': ZERO_DECIMAL128,
+            'txCount': 0,
+        }
+    factory_hour_data_record['totalValueLockedUSD'] = factory_record['totalValueLockedUSD']
+    factory_hour_data_record['txCount'] += 1
+    factory_hour_data_record['volumeETH'] = Decimal128(factory_hour_data_record['volumeETH'].to_decimal() + amount_total_ETH_tracked)
+    factory_hour_data_record['volumeUSD'] = Decimal128(factory_hour_data_record['volumeUSD'].to_decimal() + amount_total_USD_tracked)
+    factory_hour_data_record['feesUSD'] = Decimal128(factory_hour_data_record['feesUSD'].to_decimal() + fees_USD)
+
+    update_request = UpdateOne({
+        'hourId': hour_id
+        }, {
+            '$set': factory_hour_data_record
+        }, upsert=True)
+    db[Collection.FACTORIES_HOUR_DATA].bulk_write([update_request])
+    return factory_hour_data_record
+
+
 async def update_pool_day_data(db: Database, pool_record: dict, timestamp: str, 
                          amount_total_USD_tracked: Decimal = ZERO_DECIMAL, 
                          amount0_abs: Decimal = ZERO_DECIMAL, 
