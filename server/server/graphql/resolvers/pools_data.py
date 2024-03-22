@@ -13,7 +13,6 @@ from server.graphql.resolvers.helpers import (
     filter_pools_by_token_addresses
 )
 from server.const import Collection
-from server.utils import format_address
 from server.graphql.resolvers.pools import Pool
 
 

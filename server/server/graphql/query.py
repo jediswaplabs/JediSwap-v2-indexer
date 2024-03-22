@@ -14,6 +14,7 @@ from server.graphql.resolvers.pools_hour_data import PoolHourData, get_pools_hou
 from server.graphql.resolvers.pools_day_data import PoolDayData, get_pools_day_data
 from server.graphql.resolvers.pools_data import PoolData, get_pools_data
 from server.graphql.resolvers.factories_day_data import FactoryDayData, get_factories_day_data
+from server.graphql.resolvers.factories_data import FactoriesData, get_factories_data
 from server.graphql.resolvers.transactions import Transaction, get_transactions
 
 
@@ -31,4 +32,5 @@ class Query:
     pools_day_data: List[PoolDayData] = strawberry.field(resolver=get_pools_day_data)
     pools_data: List[PoolData] = strawberry.field(resolver=get_pools_data)
     factories_day_data: List[FactoryDayData] = strawberry.field(resolver=get_factories_day_data)
+    factories_data: List[FactoriesData] = strawberry.field(resolver=get_factories_data)
     transactions: List[Transaction] = strawberry.field(resolver=get_transactions)
