@@ -6,10 +6,9 @@ export function formatSelectorKey(name: string): string {
 }
 
 export const COLLECTION_NAMES = {
-  POSITIONS: 'positions',
-  POSITION_FEES: 'position_fees',
   POOLS: 'pools',
   POOLS_DATA: 'pools_data',
+  POSITIONS_DATA: 'positions_data',
 }
 
 export const EVENTS = {

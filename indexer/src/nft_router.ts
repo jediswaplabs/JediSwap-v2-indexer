@@ -10,6 +10,7 @@ import {
   MONGODB_CONNECTION_STRING,
   DB_NAME,
   STREAM_URL,
+  EVENTS,
 } from "../common/constants.ts";
 import {
   fetchAdditionalDetailsFromPosition,
@@ -38,8 +39,7 @@ export const config = {
   sinkOptions: {
     database: DB_NAME,
     connectionString: MONGODB_CONNECTION_STRING,
-    collectionNames: [COLLECTION_NAMES.POSITIONS, COLLECTION_NAMES.POSITION_FEES],
-    entityMode: true,
+    collectionName: COLLECTION_NAMES.POSITIONS_DATA,
   },
 };
     
@@ -58,16 +58,11 @@ export default async function transform({ header, events }: Block) {
         const positionAddress = formatFelt(event.fromAddress);
         const ownerAddress = formatFelt(event.keys[2]);
         return {
-          entity: { positionId,  positionAddress},
-          collection: COLLECTION_NAMES.POSITIONS,
-          update: {
-            "$set": {
-              positionId,
-              positionAddress,
-              ownerAddress,
-              ...txMeta,
-            },
-          },
+          event: EVENTS.TRANSFER,
+          positionId,
+          positionAddress,
+          ownerAddress,
+          ...txMeta,
         };
       }
       case SELECTOR_KEYS.INCREASE_LIQUIDITY: {
@@ -77,20 +72,13 @@ export default async function transform({ header, events }: Block) {
         const amount0 = formatU256(event.data[3], event.data[4]);
         const amount1 = formatU256(event.data[5], event.data[6]);
         return {
-          entity: { positionId,  positionAddress},
-          collection: COLLECTION_NAMES.POSITIONS,
-          update: {
-            "$set": {
-              positionId,
-              positionAddress,
-              ...txMeta,
-            },
-            "$inc": {
-              depositedToken0: amount0,
-              depositedToken1: amount1,
-              liquidity: liquidity,
-            }
-          },
+          event: EVENTS.INCREASE_LIQUIDITY,
+          positionId,
+          positionAddress,
+          depositedToken0: amount0,
+          depositedToken1: amount1,
+          liquidity: liquidity,
+          ...txMeta,
         };
       };
       case SELECTOR_KEYS.DECREASE_LIQUIDITY: {
@@ -100,20 +88,13 @@ export default async function transform({ header, events }: Block) {
         const amount0 = formatU256(event.data[3], event.data[4]);
         const amount1 = formatU256(event.data[5], event.data[6]);
         return {
-          entity: { positionId,  positionAddress},
-          collection: COLLECTION_NAMES.POSITIONS,
-          update: {
-            "$set": {
-              positionId,
-              positionAddress,
-              ...txMeta,
-            },
-            "$inc": {
-              withdrawnToken0: amount0,
-              withdrawnToken1: amount1,
-              liquidity: -liquidity,
-            }
-          },
+          event: EVENTS.DECREASE_LIQUIDITY,
+          positionId,
+          positionAddress,
+          withdrawnToken0: amount0,
+          withdrawnToken1: amount1,
+          liquidity: liquidity,
+          ...txMeta,
         };
       };
       case SELECTOR_KEYS.COLLECT: {
@@ -123,21 +104,14 @@ export default async function transform({ header, events }: Block) {
         const amount0_collect = Number(event.data[3]);
         const amount1_collect = Number(event.data[4]);
         return {
-          entity: { positionId,  positionAddress},
-          collection: COLLECTION_NAMES.POSITION_FEES,
-          update: {
-            "$set": {
-              positionId,
-              positionAddress,
-              ownerAddress,
-              ...txMeta,
-            },
-            "$inc": {
-              collectedFeesToken0: amount0_collect,
-              collectedFeesToken1: amount1_collect,
-            }
-          },
-        }
+          event: EVENTS.COLLECT,
+          positionId,
+          positionAddress,
+          ownerAddress,
+          collectedFeesToken0: amount0_collect,
+          collectedFeesToken1: amount1_collect,
+          ...txMeta,
+        };
       };
       default:
         return;
@@ -145,16 +119,16 @@ export default async function transform({ header, events }: Block) {
   }).filter(Boolean);;
 
   for (const inputEvent of output) {
-    const positionId = inputEvent.entity.positionId
-    const positionAddress = inputEvent.entity.positionAddress;
+    const positionId = inputEvent.positionId
+    const positionAddress = inputEvent.positionAddress;
     console.log(`Fetching additonal details for position: ${positionId} ...`);
     const positionInfo = await fetchAdditionalDetailsFromPosition(positionAddress, positionId);
     if (positionInfo) {
-      inputEvent.update["$set"].token0Address = positionInfo.token0;
-      inputEvent.update["$set"].token1Address = positionInfo.token1;
-      inputEvent.update["$set"].tickLower = positionInfo.tickLower;
-      inputEvent.update["$set"].tickUpper = positionInfo.tickUpper;
-      inputEvent.update["$set"].poolFee = positionInfo.poolFee;
+      inputEvent.token0Address = positionInfo.token0;
+      inputEvent.token1Address = positionInfo.token1;
+      inputEvent.tickLower = positionInfo.tickLower;
+      inputEvent.tickUpper = positionInfo.tickUpper;
+      inputEvent.poolFee = positionInfo.poolFee;
       console.log(`Position ${positionId} updated with additional details`);
     }
   }

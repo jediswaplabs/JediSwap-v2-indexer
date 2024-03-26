@@ -1,4 +1,3 @@
-import datetime as dt
 from decimal import Decimal
 from typing import List, Optional
 
@@ -6,8 +5,8 @@ import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime
-from server.const import Collection, DEFAULT_DECIMALS
+from server.graphql.resolvers.helpers import add_order_by_constraint
+from server.const import Collection
 from server.query_utils import filter_by_the_latest_value
 from server.utils import amount_after_decimals
 from server.graphql.resolvers.tokens import Token
@@ -19,13 +18,15 @@ class NftPosition:
 
     positionAddress: str
     ownerAddress: str
+    liquidity: Decimal
+
     depositedToken0: Decimal
     depositedToken1: Decimal
     withdrawnToken0: Decimal
     withdrawnToken1: Decimal
-    liquidity: Decimal
-    datetime: dt.datetime
-    block: int
+    collectedFeesToken0: Decimal
+    collectedFeesToken1: Decimal
+
 
     token0Address: strawberry.Private[str]
     token1Address: strawberry.Private[str]
@@ -53,6 +54,8 @@ class NftPosition:
             liquidity=Decimal(data.get('liquidity', 0)),
             datetime=convert_timestamp_to_datetime(data['timestamp']),
             block=data['block'],
+            collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
+            collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
         )
 
 
