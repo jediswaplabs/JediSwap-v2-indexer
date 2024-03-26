@@ -9,7 +9,7 @@ class Collection:
     POOLS = 'pools'
     POOLS_DATA = 'pools_data'
     POSITIONS = 'positions'
-    POSITION_FEES = 'position_fees'
+    POSITIONS_DATA = 'positions_data'
     TOKENS = 'tokens'
     FACTORIES = 'factories'
     FACTORIES_DAY_DATA = 'factories_day_data'

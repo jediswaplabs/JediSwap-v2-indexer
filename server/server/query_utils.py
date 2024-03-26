@@ -102,6 +102,27 @@ async def get_tokens_from_pool(db: Database, existing_pool: dict, rpc_url: str) 
     return token0, token1
 
 
+async def get_position_record(db: Database, position_id: str) -> dict:
+    position_collection = db[Collection.POSITIONS]
+    position_record = db[Collection.POSITIONS].find_one({'positionId': position_id})
+    if position_record is None:
+        position_record = {
+            'positionId': position_id,
+            'poolFee': 0,
+            'tickLower': 0,
+            'tickUpper': 0,
+            'liquidity': 0,
+            'depositedToken0': ZERO_DECIMAL128,
+            'depositedToken1': ZERO_DECIMAL128,
+            'withdrawnToken0': ZERO_DECIMAL128,
+            'withdrawnToken1': ZERO_DECIMAL128,
+            'collectedFeesToken0': ZERO_DECIMAL128,
+            'collectedFeesToken1': ZERO_DECIMAL128,
+        }
+        position_collection.insert_one(position_record)
+    return position_record
+
+
 async def get_position_fee_by_position_id(db: Database, position_id: str) -> dict:
     query = {'positionId': position_id}
     await filter_by_the_latest_value(query)

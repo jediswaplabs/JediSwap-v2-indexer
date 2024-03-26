@@ -1,4 +1,3 @@
-import datetime as dt
 from decimal import Decimal
 from typing import List, Optional
 
@@ -6,10 +5,9 @@ import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime
-from server.const import Collection, DEFAULT_DECIMALS
+from server.graphql.resolvers.helpers import add_order_by_constraint
+from server.const import Collection
 from server.query_utils import filter_by_the_latest_value
-from server.utils import amount_after_decimals
 
 
 @strawberry.type
@@ -18,13 +16,15 @@ class NftPosition:
 
     positionAddress: str
     ownerAddress: str
+    liquidity: Decimal
+
     depositedToken0: Decimal
     depositedToken1: Decimal
     withdrawnToken0: Decimal
     withdrawnToken1: Decimal
-    liquidity: Decimal
-    datetime: dt.datetime
-    block: int
+    collectedFeesToken0: Decimal
+    collectedFeesToken1: Decimal
+
 
     @classmethod
     def from_mongo(cls, data):
@@ -32,13 +32,13 @@ class NftPosition:
             positionId=data['positionId'],
             positionAddress=data['positionAddress'],
             ownerAddress=data['ownerAddress'],
-            depositedToken0=amount_after_decimals(data.get('depositedToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            depositedToken1=amount_after_decimals(data.get('depositedToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken0=amount_after_decimals(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken1=amount_after_decimals(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
-            liquidity=Decimal(data.get('liquidity', 0)),
-            datetime=convert_timestamp_to_datetime(data['timestamp']),
-            block=data['block'],
+            liquidity=Decimal(data['liquidity']),
+            depositedToken0=data['depositedToken0'].to_decimal(),
+            depositedToken1=data['depositedToken1'].to_decimal(),
+            withdrawnToken0=data['withdrawnToken0'].to_decimal(),
+            withdrawnToken1=data['withdrawnToken1'].to_decimal(),
+            collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
+            collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
         )
 
 
