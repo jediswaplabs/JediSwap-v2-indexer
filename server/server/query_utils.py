@@ -1,5 +1,5 @@
 from pymongo.database import Database
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, ZERO_ADDRESS
 from server.utils import amount_after_decimals, get_hour_id
@@ -102,6 +102,33 @@ async def get_tokens_from_pool(db: Database, existing_pool: dict, rpc_url: str) 
     return token0, token1
 
 
+async def get_position_record(db: Database, position_id: str) -> dict:
+    position_collection = db[Collection.POSITIONS]
+    position_record = db[Collection.POSITIONS].find_one({'positionId': position_id})
+    if position_record is None:
+        position_record = {
+            'positionId': position_id,
+            'poolFee': 0,
+            'tickLower': 0,
+            'tickUpper': 0,
+            'liquidity': 0,
+            'depositedToken0': ZERO_DECIMAL128,
+            'depositedToken1': ZERO_DECIMAL128,
+            'withdrawnToken0': ZERO_DECIMAL128,
+            'withdrawnToken1': ZERO_DECIMAL128,
+            'collectedFeesToken0': ZERO_DECIMAL128,
+            'collectedFeesToken1': ZERO_DECIMAL128,
+        }
+        position_collection.insert_one(position_record)
+    return position_record
+
+
+async def get_position_fee_by_position_id(db: Database, position_id: str) -> dict:
+    query = {'positionId': position_id}
+    await filter_by_the_latest_value(query)
+    return db[Collection.POSITION_FEES].find_one(query)
+
+
 async def get_token_name(token_address: str, rpc_url: str) -> str:
     try:
         result = await simple_call(token_address, "name", [], rpc_url)
@@ -141,3 +168,12 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
     except Exception as e:
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise
+
+async def simulate_tx(tx: Any, rpc_url: str):
+    rpc = FullNodeClient(node_url=rpc_url)
+    try:
+        simulated_txs = await rpc.simulate_transactions(
+            transactions=[tx], skip_validate=True, skip_fee_charge=True)
+        return simulated_txs[0].transaction_trace.execute_invocation.result
+    except Exception:
+        pass
