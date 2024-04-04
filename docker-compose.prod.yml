@@ -70,7 +70,7 @@ services:
     command:
       - leaderboard
       - --env-file
-      - env_goerli
+      - env_mainnet
     environment:
       PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
