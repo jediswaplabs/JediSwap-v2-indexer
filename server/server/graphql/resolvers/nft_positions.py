@@ -73,7 +73,6 @@ async def get_nft_positions(
     db: Database = info.context['db']
 
     query = {}
-    await filter_by_the_latest_value(query)
     if where is not None:
         if where.position_id is not None:
             query['positionId'] = where.position_id

@@ -4,7 +4,8 @@ from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
-from server.const import Collection, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
+from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
+from server.transform.lp_contest_updates import calculate_lp_leaderboard_points
 from server.query_utils import get_token_record, get_position_record
 from server.utils import amount_after_decimals
 
@@ -12,13 +13,6 @@ from structlog import get_logger
 
 
 logger = get_logger(__name__)
-
-
-class Event:
-    TRANSFER = 'Transfer'
-    INCREASE_LIQUIDITY = 'IncreaseLiquidity'
-    DECREASE_LIQUIDITY = 'DecreaseLiquidity'
-    COLLECT = 'Collect'
 
 
 class EventTracker:
@@ -62,6 +56,7 @@ async def handle_transfer(*args, **kwargs):
     position_update_data['$set']['tickUpper'] = record['tickUpper']
     position_update_data['$set']['token0Address'] = record['token0Address']
     position_update_data['$set']['token1Address'] = record['token1Address']
+    position_update_data['$set']['lastUpdatedTimestamp'] = record['timestamp']
 
     await update_position_record(db, record['positionId'], position_update_data)
 
@@ -81,6 +76,8 @@ async def handle_increase_liquidity(*args, **kwargs):
 
     amount0 = await amount_after_decimals(record['depositedToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['depositedToken1'], token1.get('decimals', DEFAULT_DECIMALS))
+
+    await calculate_lp_leaderboard_points(record, db, rpc_url, Event.INCREASE_LIQUIDITY)
 
     position_update_data = {
         '$inc': {
@@ -108,6 +105,8 @@ async def handle_decrease_liquidity(*args, **kwargs):
 
     amount0 = await amount_after_decimals(record['withdrawnToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['withdrawnToken1'], token1.get('decimals', DEFAULT_DECIMALS))
+
+    await calculate_lp_leaderboard_points(record, db, rpc_url, Event.DECREASE_LIQUIDITY)
 
     position_update_data = {
         '$inc': {

@@ -1,7 +1,7 @@
 from pymongo.database import Database
 from typing import List, Optional, Any
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, ZERO_ADDRESS
+from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
 from server.utils import amount_after_decimals, get_hour_id
 
 from starknet_py.contract import ContractFunction
@@ -127,15 +127,13 @@ async def get_position_record(db: Database, position_id: str) -> dict:
             'withdrawnToken1': ZERO_DECIMAL128,
             'collectedFeesToken0': ZERO_DECIMAL128,
             'collectedFeesToken1': ZERO_DECIMAL128,
+            'totalFeesUSD': ZERO_DECIMAL128,
+            'timeVestedValue': ZERO_DECIMAL128,
+            'lastUpdatedTimestamp': 0,
+            'lp_points': ZERO_DECIMAL128,
         }
         position_collection.insert_one(position_record)
     return position_record
-
-
-async def get_position_fee_by_position_id(db: Database, position_id: str) -> dict:
-    query = {'positionId': position_id}
-    await filter_by_the_latest_value(query)
-    return db[Collection.POSITION_FEES].find_one(query)
 
 
 async def get_token_name(token_address: str, rpc_url: str) -> str:
@@ -178,11 +176,19 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise
 
-async def simulate_tx(tx: Any, rpc_url: str):
+async def simulate_tx(tx: Any, rpc_url: str, block_number: int):
     rpc = FullNodeClient(node_url=rpc_url)
     try:
         simulated_txs = await rpc.simulate_transactions(
-            transactions=[tx], skip_validate=True, skip_fee_charge=True)
+            transactions=[tx], skip_validate=True, skip_fee_charge=True, block_number=block_number)
         return simulated_txs[0].transaction_trace.execute_invocation.result
     except Exception:
         pass
+
+async def get_recent_block_number(rpc_url: str) -> int:
+    rpc = FullNodeClient(node_url=rpc_url)
+    try:
+        return await rpc.get_block_number()
+    except Exception as e:
+        logger.info("rpc call did not succeed", error=str(e))  
+        raise

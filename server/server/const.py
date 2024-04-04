@@ -22,6 +22,17 @@ class Collection:
     LP_LEADERBOARD_SNAPSHOT = 'lp_leaderboard_snapshot'
 
 
+class Event:
+    TRANSFER = 'Transfer'
+    INCREASE_LIQUIDITY = 'IncreaseLiquidity'
+    DECREASE_LIQUIDITY = 'DecreaseLiquidity'
+    COLLECT = 'Collect'
+    INITIALIZE = 'Initialize'
+    MINT = 'Mint'
+    BURN = 'Burn'
+    SWAP = 'Swap'
+    
+
 FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
 
 
