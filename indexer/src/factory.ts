@@ -115,7 +115,7 @@ export default function transform({ header, events }: Block) {
           sender: formatFelt(event.data[0]),
           owner: formatFelt(event.data[1]),
           tickLower: formatI32(event.data[2], event.data[3]),
-          tickUpper: formatI32(event.data[4], event.data[4]),
+          tickUpper: formatI32(event.data[4], event.data[5]),
           amount: Number(event.data[6]),
           amount0: formatU256(event.data[7], event.data[8]),
           amount1: formatU256(event.data[9], event.data[10]),

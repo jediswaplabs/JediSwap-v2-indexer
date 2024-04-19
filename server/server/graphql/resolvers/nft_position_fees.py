@@ -10,6 +10,7 @@ from server.graphql.resolvers.helpers import add_order_by_constraint, convert_ti
 from server.const import Collection, DEFAULT_DECIMALS
 from server.query_utils import filter_by_the_latest_value
 from server.utils import amount_after_decimals
+from server.graphql.resolvers.tokens import Token
 
 
 @strawberry.type
@@ -23,12 +24,25 @@ class NftPositionFee:
     datetime: dt.datetime
     block: int
 
+    token0Address: strawberry.Private[str]
+    token1Address: strawberry.Private[str]
+
+    @strawberry.field
+    def token0(self, info: Info) -> Token:
+        return info.context["token_loader"].load(self.token0Address)
+
+    @strawberry.field
+    def token1(self, info: Info) -> Token:
+        return info.context["token_loader"].load(self.token1Address)
+
     @classmethod
     def from_mongo(cls, data):
         return cls(
             positionId=data['positionId'],
             positionAddress=data['positionAddress'],
             ownerAddress=data['ownerAddress'],
+            token0Address=data['token0Address'],
+            token1Address=data['token1Address'],
             collectedFeesToken0=amount_after_decimals(data.get('collectedFeesToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
             collectedFeesToken1=amount_after_decimals(data.get('collectedFeesToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
             datetime=convert_timestamp_to_datetime(data['timestamp']),
