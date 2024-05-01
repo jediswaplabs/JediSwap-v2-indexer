@@ -16,6 +16,7 @@ from server.graphql.resolvers.factories_day_data import FactoryDayData, get_fact
 from server.graphql.resolvers.factories_data import FactoriesData, get_factories_data
 from server.graphql.resolvers.transactions import Transaction, get_transactions
 from server.graphql.resolvers.lp_leaderboard import LpLeaderboard, get_lp_leaderboard_points
+from server.graphql.resolvers.volume_leaderboard import VolumeLeaderboard, get_volume_leaderboard_points
 from server.graphql.resolvers.strk_grant import fetch_strk_grant_data
 
 
@@ -35,4 +36,5 @@ class Query:
     factories_data: List[FactoriesData] = strawberry.field(resolver=get_factories_data)
     transactions: List[Transaction] = strawberry.field(resolver=get_transactions)
     lp_leaderboard: List[LpLeaderboard] = strawberry.field(resolver=get_lp_leaderboard_points)
+    volume_leaderboard: List[VolumeLeaderboard] = strawberry.field(resolver=get_volume_leaderboard_points)
     strk_grant_data: strawberry.scalars.JSON = strawberry.field(resolver=fetch_strk_grant_data)

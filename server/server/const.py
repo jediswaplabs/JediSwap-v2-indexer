@@ -20,6 +20,8 @@ class Collection:
     TOKENS_HOUR_DATA = 'tokens_hour_data'
     LP_LEADERBOARD = 'lp_leaderboard'
     LP_LEADERBOARD_SNAPSHOT = 'lp_leaderboard_snapshot'
+    VOLUME_LEADERBOARD = 'volume_leaderboard'
+    VOLUME_LEADERBOARD_SNAPSHOT = 'volume_leaderboard_snapshot'
 
 
 class Event:
