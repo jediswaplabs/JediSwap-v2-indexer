@@ -13,10 +13,10 @@ from server.const import Collection
 
 @strawberry.type
 class FactoriesData:
-    one_day: strawberry.scalars.JSON
-    two_days: strawberry.scalars.JSON
-    one_week: strawberry.scalars.JSON
-    one_month: strawberry.scalars.JSON
+    one_day: strawberry.scalars.JSON = strawberry.field(name="one_day")
+    two_days: strawberry.scalars.JSON = strawberry.field(name="two_days")
+    one_week: strawberry.scalars.JSON = strawberry.field(name="one_week")
+    one_month: strawberry.scalars.JSON = strawberry.field(name="one_month")
 
     @classmethod
     def from_mongo(cls, data):

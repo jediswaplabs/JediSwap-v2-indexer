@@ -7,7 +7,7 @@ services:
       - ./:/data/
     command:
       - run
-      - --allow-env=/data/env_goerli
+      - --allow-env=/data/env_sepolia
       - --allow-env-from-env=MONGODB_CONNECTION_STRING
       - /data/indexer/src/factory.ts
     environment:
@@ -22,7 +22,7 @@ services:
       - ./:/data/
     command:
       - run
-      - --allow-env=/data/env_goerli
+      - --allow-env=/data/env_sepolia
       - --allow-env-from-env=MONGODB_CONNECTION_STRING
       - --allow-env-from-env=RPC_URL
       - --allow-net=
@@ -42,7 +42,7 @@ services:
     command:
       - events
       - --env-file
-      - env_goerli
+      - env_sepolia
     environment:
       PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
@@ -56,7 +56,7 @@ services:
     command:
       - positions
       - --env-file
-      - env_goerli
+      - env_sepolia
     environment:
       PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}
@@ -72,7 +72,7 @@ services:
     command:
       - graphql
       - --env-file
-      - env_goerli
+      - env_sepolia
     environment:
       PYTHONUNBUFFERED: '1'
       RPC_URL: ${RPC_URL}

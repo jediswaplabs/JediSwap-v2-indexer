@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 
-ENV_FILE = Path(__file__).parent.parent.parent / 'env_goerli'
+ENV_FILE = Path(__file__).parent.parent.parent / 'env_sepolia'
 
 def async_command(f):
     @wraps(f)
