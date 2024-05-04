@@ -6,7 +6,7 @@ COPY server .
 
 WORKDIR /app/server
 
-COPY env_goerli .
+COPY env_sepolia .
 COPY env_mainnet .
 
 RUN python3 -m pip install poetry

@@ -1,7 +1,7 @@
 FROM quay.io/apibara/sink-mongo:0.5.3
 
 COPY ./indexer /data/indexer
-COPY ./env_goerli /data/env_goerli
+COPY ./env_sepolia /data/env_sepolia
 COPY ./env_mainnet /data/env_mainnet
 
 ENTRYPOINT ["/nix/store/3iqnrcirqpg4s7zdy1wdh0dq17jwzmlc-apibara-sink-mongo-0.5.3/bin/apibara-sink-mongo"]
