@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 TIME_VESTED_CONST = 1296000  # 15 days
 
 
-async def get_pool_boost(token0_address: str, token1_address) -> Decimal:
+async def get_pool_boost(token0_address: str, token1_address: str) -> Decimal:
     if {token0_address, token1_address} == {ETH, USDC}:
         return Decimal(2)
     elif {token0_address, token1_address} == {USDC, USDT}:

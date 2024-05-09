@@ -27,7 +27,6 @@ class NftPosition:
     collectedFeesToken0: Decimal
     collectedFeesToken1: Decimal
 
-
     token0Address: strawberry.Private[str]
     token1Address: strawberry.Private[str]
 

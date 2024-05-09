@@ -20,7 +20,7 @@ from server.transform.interval_updates import (
 from server.transform.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
 from server.query_utils import get_factory_record, get_pool_record, get_token_record, get_tokens_from_pool, filter_by_the_latest_value
 from server.utils import amount_after_decimals, convert_num_to_decimal128
-from server.transform.volume_contest_updates import calculate_volume_leaderboard_points
+from server.transform.leaderboard_transformer import insert_volume_leaderboard_snapshot
 
 from pymongo import MongoClient, UpdateOne
 from structlog import get_logger
@@ -435,7 +435,7 @@ async def handle_swap(*args, **kwargs):
     await update_token_day_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
     await update_token_hour_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
 
-    await calculate_volume_leaderboard_points(db, fees_USD, record)
+    await insert_volume_leaderboard_snapshot(db, fees_USD, record)
 
     EventTracker.swap_count += 1
 
