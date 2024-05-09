@@ -102,6 +102,16 @@ async def get_tokens_from_pool(db: Database, existing_pool: dict, rpc_url: str) 
     return token0, token1
 
 
+async def get_all_token_pools(db: Database, token_address: str) -> list[dict]:
+    query = {
+        '$or': [
+            {'token0': token_address},
+            {'token1': token_address},
+        ]
+    }
+    return db[Collection.POOLS].find(query)
+
+
 async def get_token_name(token_address: str, rpc_url: str) -> str:
     try:
         result = await simple_call(token_address, "name", [], rpc_url)

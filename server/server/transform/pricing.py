@@ -1,11 +1,9 @@
 from decimal import Decimal
 
 from pymongo.database import Database
-from starknet_py.contract import Contract
-from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import ZERO_DECIMAL128, os, ETH_USDC_ADDRESS, STABLECOINS, WHITELISTED_POOLS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL
-from server.query_utils import get_pool_record, get_tokens_from_pool
+from server.const import ETH_USDC_ADDRESS, STABLECOINS, ETH, WHITELISTED_TOKENS, ZERO_DECIMAL
+from server.query_utils import get_pool_record, get_tokens_from_pool, get_all_token_pools
 from server.utils import exponent_to_decimal, safe_div
 
 from structlog import get_logger
@@ -51,18 +49,19 @@ async def find_eth_per_token(db: Database, token_addr: str, rpc_url: str) -> Dec
         eth_price = await EthPrice.get()
         price_so_far = await safe_div(Decimal(1), eth_price)
     else:
-        for pool_address in WHITELISTED_POOLS:
-            pool = await get_pool_record(db, pool_address)
-            if pool and pool['liquidity'].to_decimal() > Decimal(0):
+        for pool in await get_all_token_pools(db, token_addr):
+            pool = await get_pool_record(db, pool['poolAddress'])
+            pool_liquidity = pool.get('liquidity')
+            if pool_liquidity and pool_liquidity.to_decimal() > Decimal(0):
                 token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
                 if pool['token0'] == token_addr:
                     eth_locked = pool['totalValueLockedToken1'].to_decimal() * token1['derivedETH'].to_decimal()
-                    if eth_locked > largest_liquidity_eth & eth_locked > MINIMUM_ETH_LOCKED:
+                    if eth_locked > largest_liquidity_eth and eth_locked > MINIMUM_ETH_LOCKED:
                         largest_liquidity_eth = eth_locked
                         price_so_far = pool['token1Price'].to_decimal() * token1['derivedETH'].to_decimal()
-                if pool['token1'] == token_addr:
+                elif pool['token1'] == token_addr:
                     eth_locked = pool['totalValueLockedToken0'].to_decimal() * token0['derivedETH'].to_decimal()
-                    if eth_locked > largest_liquidity_eth & eth_locked > MINIMUM_ETH_LOCKED:
+                    if eth_locked > largest_liquidity_eth and eth_locked > MINIMUM_ETH_LOCKED:
                         largest_liquidity_eth = eth_locked
                         price_so_far = pool['token0Price'].to_decimal() * token0['derivedETH'].to_decimal()
     return price_so_far
