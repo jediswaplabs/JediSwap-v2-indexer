@@ -17,6 +17,8 @@ starknet-py = "^0.18.3"
 python-dotenv = "^1.0.0"
 structlog = "^22.3.0"
 redis = "^5.0.4"
+schedule = "^1.2.1"
+pytz = "^2024.1"
 
 [build-system]
 requires = ["poetry-core"]

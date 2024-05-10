@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta
 from decimal import Decimal
 import time
@@ -5,6 +6,8 @@ import time
 from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
+import pytz
+import schedule
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
 from server.transform.lp_contest_updates import calculate_lp_leaderboard_points
@@ -16,7 +19,6 @@ from structlog import get_logger
 logger = get_logger(__name__)
 
 
-DAY_INTERVAL = 86400  # 1 day
 EARLY_ADOPTER_MULTIPLIER_CONST = 3
 LAST_SWAPS_PERIOD_IN_HOURS = 24
 SWAP_PERCENTILE_TRESHOLD = 0.75
@@ -176,7 +178,15 @@ async def process_leaderboard(mongo_url: str, mongo_database: Database, rpc_url:
         await calculate_volume_leaderboard_user_total_points(db)
 
 
+def schedule_process_leaderboard(mongo_url: str, mongo_database: Database, rpc_url: str):
+    asyncio.ensure_future(process_leaderboard(mongo_url, mongo_database, rpc_url))
+
+
 async def run_leaderboard_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
+    schedule.every().day.at('00:00', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
+                                                              mongo_url=mongo_url, 
+                                                              mongo_database=mongo_database, 
+                                                              rpc_url=rpc_url)
     while True:
-        await process_leaderboard(mongo_url, mongo_database, rpc_url)
-        time.sleep(DAY_INTERVAL)
+        schedule.run_pending()
+        await asyncio.sleep(1)
