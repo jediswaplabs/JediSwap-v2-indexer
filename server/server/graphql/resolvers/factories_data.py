@@ -31,10 +31,9 @@ class FactoriesData:
 async def get_factories_data(info: Info) -> List[FactoriesData]:
     db: Database = info.context['db']
 
+    total_value_locked_usd = None
     factories_period_data = {}
     for period_name in PERIODS_TO_DAYS_MAP:
-        factories_period_data[period_name] = {}
-
         period_query = {}
         await filter_by_days_data(period_query, period_name)
         pipeline = [
@@ -53,17 +52,31 @@ async def get_factories_data(info: Info) -> List[FactoriesData]:
                 }
             }
         ]
-
         cursor = db[Collection.FACTORIES_HOUR_DATA].aggregate(pipeline)
         
-        for record in cursor:
+        try:
+            record = next(cursor)
+            total_value_locked_usd = str(record['totalValueLockedUSD'].to_decimal())
             factories_period_data[period_name] = {
                 'feesUSD': str(record['feesUSD'].to_decimal()),
-                'totalValueLockedUSD': str(record['totalValueLockedUSD'].to_decimal()),
+                'totalValueLockedUSD': total_value_locked_usd,
                 'totalValueLockedUSDFirst': str(record['totalValueLockedUSDFirst'].to_decimal()),
                 'volumeETH': str(record['volumeETH'].to_decimal()),
                 'volumeUSD': str(record['volumeUSD'].to_decimal()),
                 'txCount': str(record['txCount']),
+            }
+        except StopIteration:
+            if total_value_locked_usd is None:
+                factory_record = next(db[Collection.FACTORIES].find({}))
+                total_value_locked_usd = str(factory_record['totalValueLockedUSD'].to_decimal())
+
+            factories_period_data[period_name] = {
+                'feesUSD': '0',
+                'totalValueLockedUSD': total_value_locked_usd,
+                'totalValueLockedUSDFirst': '0',
+                'volumeETH': '0',
+                'volumeUSD': '0',
+                'txCount': '0',
             }
 
     return [FactoriesData.from_mongo(factories_period_data)]
