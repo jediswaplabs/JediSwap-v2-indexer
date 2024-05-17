@@ -5,7 +5,7 @@ from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
 from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
-from server.transform.lp_contest_updates import calculate_lp_leaderboard_points
+from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot
 from server.query_utils import get_token_record, get_position_record
 from server.utils import amount_after_decimals
 
@@ -77,7 +77,7 @@ async def handle_increase_liquidity(*args, **kwargs):
     amount0 = await amount_after_decimals(record['depositedToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['depositedToken1'], token1.get('decimals', DEFAULT_DECIMALS))
 
-    await calculate_lp_leaderboard_points(record, db, rpc_url, Event.INCREASE_LIQUIDITY)
+    await insert_lp_leaderboard_snapshot(record, db, Event.INCREASE_LIQUIDITY)
 
     position_update_data = {
         '$inc': {
@@ -106,7 +106,7 @@ async def handle_decrease_liquidity(*args, **kwargs):
     amount0 = await amount_after_decimals(record['withdrawnToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['withdrawnToken1'], token1.get('decimals', DEFAULT_DECIMALS))
 
-    await calculate_lp_leaderboard_points(record, db, rpc_url, Event.DECREASE_LIQUIDITY)
+    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY)
 
     position_update_data = {
         '$inc': {

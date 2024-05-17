@@ -1,7 +1,6 @@
 from decimal import Decimal
 import os
 
-from bson import Decimal128
 from pymongo.database import Database
 
 from server.const import Collection, Event, ZERO_DECIMAL, ZERO_DECIMAL128, MAX_UINT128, ETH, USDC, USDT, STRK
@@ -52,15 +51,15 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     return collected_fees_usd + simulated_tx_fees_usd
 
 
-async def get_time_vested_value(event: str | None, event_data: dict, position_record: dict) -> tuple[Decimal, Decimal]:
+async def get_time_vested_value(record: dict, position_record: dict) -> tuple[Decimal, Decimal]:
     time_vested_value = position_record['timeVestedValue'].to_decimal()
-    period = event_data['timestamp'] - position_record['lastUpdatedTimestamp']
+    period = record['timestamp'] - position_record['lastUpdatedTimestamp']
     time_vested_value = min(Decimal(1), time_vested_value + Decimal(period / TIME_VESTED_CONST))
-    if event == Event.DECREASE_LIQUIDITY:
+    if record['event'] == Event.DECREASE_LIQUIDITY:
         new_time_vested_value = ZERO_DECIMAL
-    elif event == Event.INCREASE_LIQUIDITY:
+    elif record['event'] == Event.INCREASE_LIQUIDITY:
         current_liquidity = Decimal(position_record['liquidity'])
-        new_liquidity = Decimal(event_data['liquidity'])
+        new_liquidity = Decimal(record['liquidity'])
         if not current_liquidity:
             current_liquidity = new_liquidity
         new_time_vested_value = time_vested_value * Decimal(1) / (new_liquidity / current_liquidity)
@@ -140,37 +139,18 @@ async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: 
     return token_hour_data.get('priceUSD', ZERO_DECIMAL128).to_decimal()
 
 
-async def calculate_lp_leaderboard_points(event_data: dict, db: Database, rpc_url: str, event: str | None = None):
+async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None):
     position_record = await get_position_record(db, event_data['positionId'])
-
-    current_position_total_fees_usd = await get_current_position_total_fees_usd(event_data, position_record, db, rpc_url)
-    total_fees_usd = position_record['totalFeesUSD'].to_decimal()
-    current_fees_usd = current_position_total_fees_usd - total_fees_usd
-    if current_fees_usd < ZERO_DECIMAL:
-        current_fees_usd = ZERO_DECIMAL
-
-    time_vested_value, new_time_vested_value = await get_time_vested_value(event, event_data, position_record)
-
-    pool_boost = await get_pool_boost(position_record['token0Address'], position_record['token1Address'])
-
-    points = current_fees_usd * time_vested_value * pool_boost * Decimal(1000)
-
-    position_update_data = dict()
-    position_update_data['$set'] = dict()
-    position_update_data['$inc'] = dict()
-    position_update_data['$set']['totalFeesUSD'] = Decimal128(current_position_total_fees_usd)
-    position_update_data['$set']['timeVestedValue'] = Decimal128(new_time_vested_value)
-    position_update_data['$set']['lastUpdatedTimestamp'] = event_data['timestamp']
-    position_update_data['$inc']['lp_points'] = Decimal128(points)
-
-    position_query = {'positionId': position_record['positionId']}
-    db[Collection.POSITIONS].update_one(position_query, position_update_data)
 
     lp_leaderboard_snapshot_record = {
         'positionId': position_record['positionId'],
-        'currentFeesUsd': Decimal128(current_fees_usd),
-        'timeVestedValue': Decimal128(time_vested_value),
-        'lastUpdatedTimestamp': event_data['timestamp'],
-        'lp_points': Decimal128(points),
+        'position': position_record,
+        'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
+        'timestamp': event_data['timestamp'],
+        'block': event_data['block'],
+        'event': event,
+        'currentFeesUsd': ZERO_DECIMAL128,
+        'lpPoints': ZERO_DECIMAL128,
+        'processed': False,
     }
     db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)

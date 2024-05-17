@@ -130,7 +130,7 @@ async def get_position_record(db: Database, position_id: str) -> dict:
             'totalFeesUSD': ZERO_DECIMAL128,
             'timeVestedValue': ZERO_DECIMAL128,
             'lastUpdatedTimestamp': 0,
-            'lp_points': ZERO_DECIMAL128,
+            'lpPoints': ZERO_DECIMAL128,
         }
         position_collection.insert_one(position_record)
     return position_record
