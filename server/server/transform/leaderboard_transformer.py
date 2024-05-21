@@ -98,7 +98,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
                 {'$set': {
                     'currentFeesUsd': Decimal128(current_fees_usd),
                     'timeVestedValue': Decimal128(time_vested_value),
-                    'poolBoost': pool_boost,
+                    'poolBoost': Decimal128(pool_boost),
                     'lpPoints': Decimal128(points),
                     'processed': True,
                 }}
@@ -208,7 +208,7 @@ def schedule_process_leaderboard(mongo_url: str, mongo_database: Database, rpc_u
 
 
 async def run_leaderboard_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
-    schedule.every().day.at('00:00', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
+    schedule.every().day.at('13:06', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
                                                               mongo_url=mongo_url, 
                                                               mongo_database=mongo_database, 
                                                               rpc_url=rpc_url)
