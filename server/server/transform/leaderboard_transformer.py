@@ -208,7 +208,7 @@ def schedule_process_leaderboard(mongo_url: str, mongo_database: Database, rpc_u
 
 
 async def run_leaderboard_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
-    schedule.every().day.at('13:06', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
+    schedule.every().day.at('00:00', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
                                                               mongo_url=mongo_url, 
                                                               mongo_database=mongo_database, 
                                                               rpc_url=rpc_url)
