@@ -3,7 +3,7 @@ import aiohttp
 import redis
 import os
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost')
+REDIS_URL = os.getenv('PERSIST_TO_REDIS', 'redis://localhost')
 STRK_GRANT_URL = "https://kx58j6x5me.execute-api.us-east-1.amazonaws.com/starknet/fetchFile?file=strk_grant.json"
 
 async def fetch_strk_grant_data():
