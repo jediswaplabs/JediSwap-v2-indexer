@@ -211,7 +211,7 @@ def process_leaderboard_once(mongo_url: str, mongo_database: Database, rpc_url: 
     return schedule.CancelJob
 
 
-async def run_leaderboard_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
+async def run_leaderboard_transformer(mongo_url: str, mongo_database: str, rpc_url: str):
     schedule.every().day.at('00:00', pytz.timezone('UTC')).do(schedule_process_leaderboard, 
                                                               mongo_url=mongo_url, 
                                                               mongo_database=mongo_database, 
