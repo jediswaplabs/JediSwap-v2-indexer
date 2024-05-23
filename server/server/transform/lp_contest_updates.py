@@ -137,14 +137,19 @@ async def simulate_collect_tx(rpc_url: str, position_record: dict, block_number:
 
 async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: str) -> Decimal:
     query = {
-        'hourId': hour_id,
+        'hourId': {
+            '$lte': hour_id,
+        },
+        'priceUSD': {
+            '$ne': 0
+        },
         'tokenAddress': token_address,
     }
-    token_hour_data = db[Collection.TOKENS_HOUR_DATA].find_one(query)
+    token_hour_data = list(db[Collection.TOKENS_HOUR_DATA].find(query).sort({'hourId': -1}))
     if not token_hour_data:
         logger.info(f'Token price for {token_address} and hour id {hour_id} not found')
-        token_hour_data = {}
-    return token_hour_data.get('priceUSD', ZERO_DECIMAL128).to_decimal()
+        return ZERO_DECIMAL
+    return token_hour_data[0]['priceUSD'].to_decimal()
 
 
 async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None):
