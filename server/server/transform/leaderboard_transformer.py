@@ -122,7 +122,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
 
 async def insert_volume_leaderboard_snapshot(db: Database, fess_usd: Decimal, record: dict):
     volume_leaderboard_snapshot_record = {
-        'userAddress': record['sender'],
+        'userAddress': record['tx_sender'],
         'swapFeesUsd': Decimal128(fess_usd),
         'sybilMultiplier': 0,
         'earlyMultiplier': EARLY_ADOPTER_MULTIPLIER_CONST,
