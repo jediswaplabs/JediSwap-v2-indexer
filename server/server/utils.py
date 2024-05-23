@@ -11,7 +11,7 @@ async def safe_div(amount0: Decimal, amount1: Decimal) -> Decimal:
         return amount0 / amount1
     
 
-async def amount_after_decimals(amount: int, decimals: int) -> Decimal:
+async def amount_after_decimals(amount: int | Decimal, decimals: int) -> Decimal:
     num = await exponent_to_decimal(decimals)
     return Decimal(amount) / num
 

@@ -3,9 +3,12 @@ import os
 
 from pymongo.database import Database
 
-from server.const import Collection, Event, ZERO_DECIMAL, ZERO_DECIMAL128, MAX_UINT128, ETH, USDC, USDT, STRK
-from server.query_utils import simulate_tx, get_position_record
-from server.utils import get_hour_id, format_address
+from server.const import (
+    Collection, Event, ZERO_DECIMAL, ZERO_DECIMAL128, MAX_UINT128, ETH,
+    USDC, USDT, STRK, DEFAULT_DECIMALS
+)
+from server.query_utils import simulate_tx, get_position_record, get_token_record
+from server.utils import get_hour_id, format_address, amount_after_decimals
 
 from starknet_py.contract import ContractFunction
 from starknet_py.net.client_models import TransactionType
@@ -40,6 +43,11 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     
     token0_fees, token1_fees = await simulate_collect_tx(rpc_url, position_record, event_data['block'])
     if token0_fees or token1_fees:
+        token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
+        token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
+        token0_fees = await amount_after_decimals(token0_fees, token0.get('decimals', DEFAULT_DECIMALS))
+        token1_fees = await amount_after_decimals(token1_fees, token1.get('decimals', DEFAULT_DECIMALS))
+
         token0_fees_usd = token0_fees * token0_price
         token1_fees_usd = token1_fees * token1_price
         simulated_tx_fees_usd = token0_fees_usd + token1_fees_usd
