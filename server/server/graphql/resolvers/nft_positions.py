@@ -50,8 +50,6 @@ class NftPosition:
             withdrawnToken0=amount_after_decimals(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
             withdrawnToken1=amount_after_decimals(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
             liquidity=Decimal(data.get('liquidity', 0)),
-            datetime=convert_timestamp_to_datetime(data['timestamp']),
-            block=data['block'],
             collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
             collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
         )
