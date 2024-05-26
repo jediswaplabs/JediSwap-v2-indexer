@@ -5,8 +5,8 @@ import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime
-from server.const import Collection, DEFAULT_DECIMALS
+from server.graphql.resolvers.helpers import add_order_by_constraint
+from server.const import Collection, DEFAULT_DECIMALS, ZERO_DECIMAL128
 from server.utils import amount_after_decimals, format_address
 from server.graphql.resolvers.tokens import Token
 
@@ -45,10 +45,18 @@ class NftPosition:
             ownerAddress=data['ownerAddress'],
             token0Address=data['token0Address'],
             token1Address=data['token1Address'],
-            depositedToken0=amount_after_decimals(data.get('depositedToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            depositedToken1=amount_after_decimals(data.get('depositedToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken0=amount_after_decimals(data.get('withdrawnToken0', 0), data.get('token0Decimals', DEFAULT_DECIMALS)),
-            withdrawnToken1=amount_after_decimals(data.get('withdrawnToken1', 0), data.get('token1Decimals', DEFAULT_DECIMALS)),
+            depositedToken0=amount_after_decimals(
+                data.get('depositedToken0', ZERO_DECIMAL128).to_decimal(), 
+                data.get('token0Decimals', DEFAULT_DECIMALS)),
+            depositedToken1=amount_after_decimals(
+                data.get('depositedToken1', ZERO_DECIMAL128).to_decimal(), 
+                data.get('token1Decimals', DEFAULT_DECIMALS)),
+            withdrawnToken0=amount_after_decimals(
+                data.get('withdrawnToken0', ZERO_DECIMAL128).to_decimal(), 
+                data.get('token0Decimals', DEFAULT_DECIMALS)),
+            withdrawnToken1=amount_after_decimals(
+                data.get('withdrawnToken1', ZERO_DECIMAL128).to_decimal(), 
+                data.get('token1Decimals', DEFAULT_DECIMALS)),
             liquidity=Decimal(data.get('liquidity', 0)),
             collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
             collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
