@@ -6,8 +6,8 @@ from pymongo.database import Database
 from strawberry.types import Info
 
 from server.graphql.resolvers.helpers import add_order_by_constraint, convert_timestamp_to_datetime
-from server.const import Collection
-from server.utils import amount_after_decimals
+from server.const import Collection, DEFAULT_DECIMALS
+from server.utils import amount_after_decimals, format_address
 from server.graphql.resolvers.tokens import Token
 
 
@@ -75,7 +75,7 @@ async def get_nft_positions(
         if where.position_id is not None:
             query['positionId'] = where.position_id
         if where.owner_address is not None:
-            query['ownerAddress'] = where.owner_address
+            query['ownerAddress'] = format_address(where.owner_address)
 
     cursor = db[Collection.POSITIONS].find(query, skip=skip, limit=first)
     cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)
