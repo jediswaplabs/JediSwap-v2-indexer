@@ -45,6 +45,7 @@ class WhereFilterForPoolData:
     pool_address_in: Optional[List[str]] = field(default_factory=list)
     both_token_address_in: Optional[List[str]] = field(default_factory=list)
 
+
 @strawberry.input
 class WhereFilterForTransaction:
     pool_address: Optional[str] = None
@@ -53,9 +54,17 @@ class WhereFilterForTransaction:
     tx_type_in: Optional[List[str]] = field(default_factory=lambda: ['Swap', 'Burn', 'Mint'])
     tx_sender: Optional[str] = None
 
+
 @strawberry.input
 class WhereFilterForUser:
     user_address: Optional[str] = None
+
+
+@strawberry.input
+class WhereFilterForNftPosition:
+    position_id: Optional[int] = None
+    owner_address: Optional[str] = None
+
 
 async def add_block_constraint(query: dict, block: Optional[BlockFilter]):
     if block and block.number:

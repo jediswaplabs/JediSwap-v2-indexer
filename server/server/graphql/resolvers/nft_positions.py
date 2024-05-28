@@ -5,9 +5,9 @@ import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
 
-from server.graphql.resolvers.helpers import add_order_by_constraint
-from server.const import Collection, DEFAULT_DECIMALS, ZERO_DECIMAL128
-from server.utils import amount_after_decimals, format_address
+from server.graphql.resolvers.helpers import add_order_by_constraint, WhereFilterForNftPosition
+from server.const import Collection
+from server.utils import format_address
 from server.graphql.resolvers.tokens import Token
 
 
@@ -53,13 +53,6 @@ class NftPosition:
             collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
             collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
         )
-
-
-@strawberry.input
-class WhereFilterForNftPosition:
-    position_id: Optional[int] = None
-    owner_address: Optional[str] = None
-
 
 
 async def get_nft_positions(

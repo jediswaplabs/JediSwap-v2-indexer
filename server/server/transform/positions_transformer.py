@@ -4,7 +4,7 @@ from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
-from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL
+from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL, ZERO_DECIMAL
 from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot
 from server.query_utils import get_token_record, get_position_record
 from server.utils import amount_after_decimals
@@ -131,9 +131,24 @@ async def handle_collect(*args, **kwargs):
 
     token0 = await get_token_record(db, record['token0Address'], rpc_url)
     token1 = await get_token_record(db, record['token1Address'], rpc_url)
+    token0_decimals = token0.get('decimals', DEFAULT_DECIMALS)
+    token1_decimals = token1.get('decimals', DEFAULT_DECIMALS)
 
-    amount0 = await amount_after_decimals(record['collectedFeesToken0'], token0.get('decimals', DEFAULT_DECIMALS))
-    amount1 = await amount_after_decimals(record['collectedFeesToken1'], token1.get('decimals', DEFAULT_DECIMALS))
+    collected_amount0 = await amount_after_decimals(record['collectedFeesToken0'], token0_decimals)
+    collected_amount1 = await amount_after_decimals(record['collectedFeesToken1'], token1_decimals)
+
+    withdrawn_amount0 = ZERO_DECIMAL
+    withdrawn_amount1 = ZERO_DECIMAL
+    if decrease_liquidity_record := db[Collection.POSITIONS_DATA].find_one({
+        'positionId': record['positionId'],
+        'event': Event.DECREASE_LIQUIDITY,
+        'timestamp': record['timestamp'],
+    }):
+        withdrawn_amount0 = await amount_after_decimals(decrease_liquidity_record['withdrawnToken0'], token0_decimals)
+        withdrawn_amount1 = await amount_after_decimals(decrease_liquidity_record['withdrawnToken1'], token1_decimals)
+
+    amount0 = collected_amount0 - withdrawn_amount0
+    amount1 = collected_amount1 - withdrawn_amount1
 
     position_update_data = {
         '$inc': {
