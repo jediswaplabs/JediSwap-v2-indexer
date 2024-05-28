@@ -38,4 +38,5 @@ class Query:
     lp_leaderboard: List[LpLeaderboard] = strawberry.field(resolver=get_lp_leaderboard_points)
     volume_leaderboard: List[VolumeLeaderboard] = strawberry.field(resolver=get_volume_leaderboard_points)
     strk_grant_data: strawberry.scalars.JSON = strawberry.field(resolver=fetch_strk_grant_data_v1)
+    strk_grant_data_v1: strawberry.scalars.JSON = strawberry.field(resolver=fetch_strk_grant_data_v1)
     strk_grant_data_v2: strawberry.scalars.JSON = strawberry.field(resolver=fetch_strk_grant_data_v2)
