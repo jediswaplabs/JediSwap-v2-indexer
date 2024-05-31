@@ -1,7 +1,6 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-import time
 
 from bson import Decimal128
 from pymongo import MongoClient, UpdateOne
@@ -46,7 +45,10 @@ async def yield_position_records(db: Database) -> dict:
 
 async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
     processed_positions_records = 0
-    current_timestamp = int(time.time() * 1000)
+    current_dt = datetime.now(timezone.utc)
+    if current_dt.hour == 0:
+        current_dt = current_dt - timedelta(days=1)
+    current_timestamp = int(current_dt.replace(hour=23, minute=59, second=59).timestamp() * 1000)
     block_number = await get_recent_block_number(rpc_url)
     
     async for position_record in yield_position_records(db):
