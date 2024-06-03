@@ -13,7 +13,7 @@ strawberry-graphql = {extras = ["debug-server"], version = "^0.216.1"}
 aiohttp-cors = "^0.7.0"
 aiohttp = "^3.9.1"
 pymongo = "^4.6.1"
-starknet-py = "^0.18.3"
+starknet-py = "^0.22.0"
 python-dotenv = "^1.0.0"
 structlog = "^22.3.0"
 redis = "^5.0.4"
