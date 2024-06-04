@@ -178,12 +178,9 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
 
 async def simulate_tx(tx: Any, rpc_url: str, block_number: int):
     rpc = FullNodeClient(node_url=rpc_url)
-    try:
-        simulated_txs = await rpc.simulate_transactions(
-            transactions=[tx], skip_validate=True, skip_fee_charge=True, block_number=block_number)
-        return simulated_txs[0].transaction_trace.execute_invocation.result
-    except Exception:
-        pass
+    simulated_txs = await rpc.simulate_transactions(
+        transactions=[tx], skip_validate=True, skip_fee_charge=True, block_number=block_number)
+    return simulated_txs[0].transaction_trace.execute_invocation.result
 
 async def get_recent_block_number(rpc_url: str) -> int:
     rpc = FullNodeClient(node_url=rpc_url)

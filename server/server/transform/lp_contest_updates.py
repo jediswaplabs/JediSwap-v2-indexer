@@ -81,14 +81,15 @@ class CollectTx:
     METHOD = 'collect'
     TOTAL_TX = '0x1'
     COLLECT_OFFSET = '0x0'
-    COLLECT_CALL_DATA_LENGTH = '0x05'
+    COLLECT_CALL_DATA_LENGTH = 5
     TOTAL_CALL_DATA_LENGTH = '0x5'
 
-    def __init__(self, position_record: dict, contract_address: str, nonce: int, braavos_account: bool = False) -> None:
+    def __init__(self, position_record: dict, nonce: int, braavos_account: bool = False) -> None:
+        contract_address = format_address(position_record['positionAddress'])
         recipient = format_address(position_record['ownerAddress'])
         method_calldata = [
             position_record['positionId'],
-            '0',  # position_id is uint256
+            0,  # position_id is uint256
             recipient,
             MAX_UINT128,
             MAX_UINT128,
@@ -97,7 +98,7 @@ class CollectTx:
         if braavos_account:
             calldata = [
                 self.TOTAL_TX,
-                format_address(contract_address),
+                contract_address,
                 ContractFunction.get_selector(self.METHOD),
                 self.COLLECT_OFFSET,
                 self.COLLECT_CALL_DATA_LENGTH,
@@ -106,7 +107,7 @@ class CollectTx:
         else:
             calldata = [
                 self.TOTAL_TX,
-                format_address(contract_address),
+                contract_address,
                 ContractFunction.get_selector(self.METHOD),
                 self.COLLECT_CALL_DATA_LENGTH,
             ]
@@ -124,15 +125,21 @@ async def simulate_collect_tx(rpc_url: str, position_record: dict, block_number:
     rpc = FullNodeClient(node_url=rpc_url)
     nonce = await rpc.get_contract_nonce(format_address(position_record['ownerAddress']), block_number=block_number)
 
-    for nft_contract in os.environ['NFT_ROUTER_CONTRACTS'].split(','):
-        for is_braavos_account in [False, True]:
-            collect_tx = CollectTx(position_record, nft_contract, nonce, is_braavos_account)
+    tx_errors = []
+    for is_braavos_account in [False, True]:
+        collect_tx = CollectTx(position_record, nonce, is_braavos_account)
+        try:
             result = await simulate_tx(collect_tx, rpc_url, block_number)
             if result:
                 return result[-2], result[-1]
-    else:
-        logger.warn(f"Couldn't fetch fees from position: {position_record['positionId']}")
-        return ZERO_DECIMAL, ZERO_DECIMAL
+        except Exception as exc:
+            tx_errors.append(exc)
+        
+    if tx_errors:
+        logger.warn(f"Couldn't fetch fees from position {position_record['positionId']}:")
+        for error in tx_errors:
+            logger.warn(error)
+    return ZERO_DECIMAL, ZERO_DECIMAL
 
 
 async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: str) -> Decimal:
