@@ -59,7 +59,7 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     return collected_fees_usd + simulated_tx_fees_usd
 
 
-async def get_time_vested_value(record: dict, position_record: dict) -> tuple[Decimal, Decimal]:
+async def get_time_vested_value(record: dict, position_record: dict) -> tuple[Decimal, Decimal, float]:
     time_vested_value = position_record['timeVestedValue'].to_decimal()
     period = record['timestamp'] - position_record['lastUpdatedTimestamp']
     time_vested_value = min(Decimal(1), time_vested_value + Decimal(period / TIME_VESTED_CONST))
@@ -74,7 +74,7 @@ async def get_time_vested_value(record: dict, position_record: dict) -> tuple[De
     else:
         new_time_vested_value = time_vested_value
 
-    return time_vested_value, new_time_vested_value
+    return time_vested_value, new_time_vested_value, period
 
 
 class CollectTx:
@@ -171,6 +171,10 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
         'event': event,
         'currentFeesUsd': ZERO_DECIMAL128,
         'lpPoints': ZERO_DECIMAL128,
+        'timeVestedValue': ZERO_DECIMAL128,
+        'newTimeVestedValue': ZERO_DECIMAL128,
+        'period': 0,
+        'poolBoost': ZERO_DECIMAL128,
         'processed': False,
     }
     db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
