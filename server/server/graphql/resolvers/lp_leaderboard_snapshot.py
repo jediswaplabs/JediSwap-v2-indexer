@@ -21,8 +21,8 @@ class LpLeaderboardSnapshot:
     currentFeesUsd: Decimal
     lpPoints: Decimal
     processed: bool
-    timeVestedValue: Decimal
-    newTimeVestedValue: Decimal
+    lastTimeVestedValue: Decimal
+    currentTimeVestedValue: Decimal
     poolBoost: Decimal
     period: float
 
@@ -40,8 +40,8 @@ class LpLeaderboardSnapshot:
             currentFeesUsd=data['currentFeesUsd'].to_decimal(),
             lpPoints=data['lpPoints'].to_decimal(),
             processed=data['processed'],
-            timeVestedValue=data['timeVestedValue'].to_decimal(),
-            newTimeVestedValue=data['newTimeVestedValue'].to_decimal(),
+            lastTimeVestedValue=data['lastTimeVestedValue'].to_decimal(),
+            currentTimeVestedValue=data['currentTimeVestedValue'].to_decimal(),
             poolBoost=data['poolBoost'].to_decimal(),
             period=data['period'],
         )

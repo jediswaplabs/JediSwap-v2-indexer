@@ -60,21 +60,21 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
 
 
 async def get_time_vested_value(record: dict, position_record: dict) -> tuple[Decimal, Decimal, float]:
-    time_vested_value = position_record['timeVestedValue'].to_decimal()
+    last_time_vested_value = position_record['timeVestedValue'].to_decimal()
     period = record['timestamp'] - position_record['lastUpdatedTimestamp']
-    time_vested_value = min(Decimal(1), time_vested_value + Decimal(period / TIME_VESTED_CONST))
+    last_time_vested_value = min(Decimal(1), last_time_vested_value + Decimal(period / TIME_VESTED_CONST))
     if record['event'] == Event.DECREASE_LIQUIDITY:
-        new_time_vested_value = ZERO_DECIMAL
+        current_time_vested_value = ZERO_DECIMAL
     elif record['event'] == Event.INCREASE_LIQUIDITY:
         current_liquidity = Decimal(position_record['liquidity'])
         new_liquidity = Decimal(record['liquidity'])
         if not current_liquidity:
             current_liquidity = new_liquidity
-        new_time_vested_value = time_vested_value * Decimal(1) / (new_liquidity / current_liquidity)
+        current_time_vested_value = last_time_vested_value * Decimal(1) / (new_liquidity / current_liquidity)
     else:
-        new_time_vested_value = time_vested_value
+        current_time_vested_value = last_time_vested_value
 
-    return time_vested_value, new_time_vested_value, period
+    return last_time_vested_value, current_time_vested_value, period
 
 
 class CollectTx:
@@ -171,8 +171,8 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
         'event': event,
         'currentFeesUsd': ZERO_DECIMAL128,
         'lpPoints': ZERO_DECIMAL128,
-        'timeVestedValue': ZERO_DECIMAL128,
-        'newTimeVestedValue': ZERO_DECIMAL128,
+        'lastTimeVestedValue': ZERO_DECIMAL128,
+        'currentTimeVestedValue': ZERO_DECIMAL128,
         'period': 0,
         'poolBoost': ZERO_DECIMAL128,
         'processed': False,

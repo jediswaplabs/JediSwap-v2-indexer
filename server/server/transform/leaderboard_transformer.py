@@ -77,17 +77,17 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
         if current_fees_usd < ZERO_DECIMAL:
             current_fees_usd = ZERO_DECIMAL
 
-        time_vested_value, new_time_vested_value, period = await get_time_vested_value(record, position_record)
+        last_time_vested_value, current_time_vested_value, period = await get_time_vested_value(record, position_record)
 
         pool_boost = await get_pool_boost(position_record['token0Address'], position_record['token1Address'])
 
-        points = current_fees_usd * time_vested_value * pool_boost * Decimal(1000)
+        points = current_fees_usd * last_time_vested_value * pool_boost * Decimal(1000)
 
         position_update_data = dict()
         position_update_data['$set'] = dict()
         position_update_data['$inc'] = dict()
         position_update_data['$set']['totalFeesUSD'] = Decimal128(current_position_total_fees_usd)
-        position_update_data['$set']['timeVestedValue'] = Decimal128(new_time_vested_value)
+        position_update_data['$set']['timeVestedValue'] = Decimal128(current_time_vested_value)
         position_update_data['$set']['lastUpdatedTimestamp'] = record['timestamp']
         position_update_data['$inc']['lpPoints'] = Decimal128(points)
 
@@ -99,8 +99,8 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
                 {'_id': record['_id']},
                 {'$set': {
                     'currentFeesUsd': Decimal128(current_fees_usd),
-                    'timeVestedValue': Decimal128(time_vested_value),
-                    'newTimeVestedValue': Decimal128(new_time_vested_value),
+                    'lastTimeVestedValue ': Decimal128(last_time_vested_value),
+                    'currentTimeVestedValue': Decimal128(current_time_vested_value),
                     'period': period,
                     'poolBoost': Decimal128(pool_boost),
                     'lpPoints': Decimal128(points),
