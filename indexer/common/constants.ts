@@ -6,6 +6,7 @@ export function formatSelectorKey(name: string): string {
 }
 
 export const COLLECTION_NAMES = {
+  BLOCKS: 'blocks',
   POOLS: 'pools',
   POOLS_DATA: 'pools_data',
   POSITIONS_DATA: 'positions_data',

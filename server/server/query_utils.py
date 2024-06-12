@@ -181,11 +181,3 @@ async def simulate_tx(tx: Any, rpc_url: str, block_number: int):
     simulated_txs = await rpc.simulate_transactions(
         transactions=[tx], skip_validate=True, skip_fee_charge=True, block_number=block_number)
     return simulated_txs[0].transaction_trace.execute_invocation.result
-
-async def get_recent_block_number(rpc_url: str) -> int:
-    rpc = FullNodeClient(node_url=rpc_url)
-    try:
-        return await rpc.get_block_number()
-    except Exception as e:
-        logger.info("rpc call did not succeed", error=str(e))  
-        raise

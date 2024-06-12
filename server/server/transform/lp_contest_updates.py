@@ -1,5 +1,4 @@
 from decimal import Decimal
-import os
 
 from pymongo.database import Database
 
@@ -19,7 +18,7 @@ from structlog import get_logger
 logger = get_logger(__name__)
 
 
-TIME_VESTED_CONST = 1296000  # 15 days
+TIME_VESTED_CONST = 1296000000  # 15 days
 
 
 async def get_pool_boost(token0_address: str, token1_address: str) -> Decimal:
@@ -159,8 +158,9 @@ async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: 
     return token_hour_data[0]['priceUSD'].to_decimal()
 
 
-async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None):
-    position_record = await get_position_record(db, event_data['positionId'])
+async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None, position_record: dict | None = None):
+    if not position_record:
+        position_record = await get_position_record(db, event_data['positionId'])
 
     lp_leaderboard_snapshot_record = {
         'positionId': position_record['positionId'],
@@ -178,3 +178,27 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
         'processed': False,
     }
     db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
+
+
+async def get_closest_block_from_timestamp(db: Database, target_timestamp: float) -> int | None:
+    pipeline = [
+        {
+            '$addFields': {
+                'diff': {
+                    '$abs': {
+                        '$subtract': ['$timestamp', target_timestamp]
+                    }
+                }
+            }
+        },
+        {
+            '$sort': {
+                'diff': 1
+            }
+        },
+        {
+            '$limit': 1
+        }
+    ]
+    result = list(db[Collection.BLOCKS].aggregate(pipeline))
+    return result[0] if result else None

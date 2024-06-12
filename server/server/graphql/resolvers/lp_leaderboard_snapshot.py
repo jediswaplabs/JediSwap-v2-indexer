@@ -5,8 +5,11 @@ from typing import List, Optional
 import strawberry
 from pymongo.database import Database
 from strawberry.types import Info
+import pytz
 
-from server.graphql.resolvers.helpers import add_order_by_constraint, WhereFilterForNftPosition, format_address
+from server.graphql.resolvers.helpers import (
+    add_order_by_constraint, WhereFilterForNftPosition, format_address, convert_timestamp_to_datetime
+)
 from server.const import Collection
 
 
@@ -15,7 +18,7 @@ class LpLeaderboardSnapshot:
     positionId: int
     ownerAddress: str
     liquidity: Decimal
-    timestamp: float
+    calculationAt: str
     block: int
     event: str
     currentFeesUsd: Decimal
@@ -30,11 +33,13 @@ class LpLeaderboardSnapshot:
     def from_mongo(cls, data):
         liquidity = data['liquidity'].to_decimal() if type(data['liquidity']) is Decimal128 else Decimal(data['liquidity'])
         event = data['event'] or ''
+        calculation_at_dt = convert_timestamp_to_datetime(data['timestamp']).astimezone(pytz.utc)
+        calculation_at = calculation_at_dt.strftime("%Y-%m-%d %H:%M:%S %Z %z")
         return cls(
             positionId=data['positionId'],
             ownerAddress=data['position']['ownerAddress'],
             liquidity=liquidity,
-            timestamp=data['timestamp'],
+            calculationAt=calculation_at,
             block=data['block'],
             event=event,
             currentFeesUsd=data['currentFeesUsd'].to_decimal(),

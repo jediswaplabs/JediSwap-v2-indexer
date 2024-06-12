@@ -1,6 +1,21 @@
 version: '3.6'
 
 services:
+  block:
+    image: quay.io/apibara/sink-mongo:0.5.3
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_sepolia
+      - --allow-env-from-env=MONGODB_CONNECTION_STRING
+      - /data/indexer/src/block.ts
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: block
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+
   factory:
     image: quay.io/apibara/sink-mongo:0.5.3
     volumes:

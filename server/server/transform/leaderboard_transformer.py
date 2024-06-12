@@ -9,12 +9,13 @@ import pytz
 import schedule
 
 from server.const import Collection, ZERO_DECIMAL128, ZERO_DECIMAL
+from server.graphql.resolvers.helpers import convert_timestamp_to_datetime
 from server.transform.lp_contest_updates import (
     insert_lp_leaderboard_snapshot,
     get_current_position_total_fees_usd,
-    get_time_vested_value, get_pool_boost
+    get_time_vested_value, get_pool_boost,
+    get_closest_block_from_timestamp,
 )
-from server.query_utils import get_recent_block_number
 
 from structlog import get_logger
 
@@ -44,21 +45,43 @@ async def yield_position_records(db: Database) -> dict:
 
 
 async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
+    # ensure that the transformer runs after 00:00
+    await asyncio.sleep(1)
+
     processed_positions_records = 0
     current_dt = datetime.now(timezone.utc)
-    if current_dt.hour == 0:
-        current_dt = current_dt - timedelta(days=1)
-    current_timestamp = int(current_dt.replace(hour=23, minute=59, second=59).timestamp() * 1000)
-    block_number = await get_recent_block_number(rpc_url)
+    current_dt = current_dt - timedelta(days=1)
+    current_dt = current_dt.replace(hour=23, minute=59, second=59)
     
     async for position_record in yield_position_records(db):
-        event_data = {
-            'positionId': position_record['positionId'],
-            'timestamp': current_timestamp,
-            'block': block_number,
-        }
-        await insert_lp_leaderboard_snapshot(event_data, db)
-        processed_positions_records += 1
+        last_updated_dt = convert_timestamp_to_datetime(position_record['lastUpdatedTimestamp'])
+        last_updated_dt = last_updated_dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+
+        records_to_be_inserted = []
+        missing_block = False
+        while current_dt >= last_updated_dt:
+            last_updated_timestamp = int(last_updated_dt.timestamp() * 1000)
+            block = await get_closest_block_from_timestamp(db, last_updated_timestamp)
+            if not block:
+                logger.warning(f'Cannot get a block for position {position_record["positionId"]} '
+                               f'and timestamp {last_updated_timestamp}. Skipping the position')
+                missing_block = True
+                break
+            event_data = {
+                'positionId': position_record['positionId'],
+                'timestamp': last_updated_timestamp,
+                'block': int(block['blockNumber']),
+            }
+            records_to_be_inserted.append({
+                'event_data': event_data,
+                'position_record': position_record,
+            })
+            last_updated_dt = last_updated_dt + timedelta(days=1)
+        
+        if not missing_block:
+            for record in records_to_be_inserted:
+                await insert_lp_leaderboard_snapshot(record['event_data'], db, position_record=record['position_record'])
+            processed_positions_records += 1
 
     logger.info(f'Successfully processed {processed_positions_records} Positions records for the leaderboard contest')
 
@@ -99,7 +122,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
                 {'_id': record['_id']},
                 {'$set': {
                     'currentFeesUsd': Decimal128(current_fees_usd),
-                    'lastTimeVestedValue ': Decimal128(last_time_vested_value),
+                    'lastTimeVestedValue': Decimal128(last_time_vested_value),
                     'currentTimeVestedValue': Decimal128(current_time_vested_value),
                     'period': period,
                     'poolBoost': Decimal128(pool_boost),

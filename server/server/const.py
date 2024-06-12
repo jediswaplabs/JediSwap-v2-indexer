@@ -6,6 +6,7 @@ from server.utils import format_address
 
 
 class Collection:
+    BLOCKS = 'blocks'
     POOLS = 'pools'
     POOLS_DATA = 'pools_data'
     POSITIONS = 'positions'
