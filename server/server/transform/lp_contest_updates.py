@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from pymongo.database import Database
@@ -6,6 +7,7 @@ from server.const import (
     Collection, Event, ZERO_DECIMAL, ZERO_DECIMAL128, MAX_UINT128, ETH,
     USDC, USDT, STRK, DEFAULT_DECIMALS
 )
+from server.graphql.resolvers.helpers import convert_timestamp_to_datetime
 from server.query_utils import simulate_tx, get_position_record, get_token_record
 from server.utils import get_hour_id, format_address, amount_after_decimals
 
@@ -58,14 +60,16 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     return collected_fees_usd + simulated_tx_fees_usd
 
 
-async def get_time_vested_value(record: dict, position_record: dict) -> tuple[Decimal, Decimal, float]:
-    last_time_vested_value = position_record['timeVestedValue'].to_decimal()
-    period = record['timestamp'] - position_record['lastUpdatedTimestamp']
+async def get_time_vested_value(db: Database, record: dict, position_record_in_event: dict) -> tuple[Decimal, Decimal, float]:
+    latest_position_record = await get_position_record(db, record['positionId'])
+    last_time_vested_value = latest_position_record['timeVestedValue'].to_decimal()
+    period = record['timestamp'] - latest_position_record['lastUpdatedTimestamp']
     last_time_vested_value = min(Decimal(1), last_time_vested_value + Decimal(period / TIME_VESTED_CONST))
+
     if record['event'] == Event.DECREASE_LIQUIDITY:
         current_time_vested_value = ZERO_DECIMAL
     elif record['event'] == Event.INCREASE_LIQUIDITY:
-        current_liquidity = Decimal(position_record['liquidity'])
+        current_liquidity = Decimal(position_record_in_event['liquidity'])
         new_liquidity = Decimal(record['liquidity'])
         if not current_liquidity:
             current_liquidity = new_liquidity
@@ -162,22 +166,28 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
     if not position_record:
         position_record = await get_position_record(db, event_data['positionId'])
 
-    lp_leaderboard_snapshot_record = {
+    lp_snapshot_query = {
         'positionId': position_record['positionId'],
-        'position': position_record,
-        'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
         'timestamp': event_data['timestamp'],
-        'block': event_data['block'],
-        'event': event,
-        'currentFeesUsd': ZERO_DECIMAL128,
-        'lpPoints': ZERO_DECIMAL128,
-        'lastTimeVestedValue': ZERO_DECIMAL128,
-        'currentTimeVestedValue': ZERO_DECIMAL128,
-        'period': 0,
-        'poolBoost': ZERO_DECIMAL128,
-        'processed': False,
     }
-    db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
+    record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
+    if not record:
+        lp_leaderboard_snapshot_record = {
+            'positionId': position_record['positionId'],
+            'position': position_record,
+            'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
+            'timestamp': event_data['timestamp'],
+            'block': event_data['block'],
+            'event': event,
+            'currentFeesUsd': ZERO_DECIMAL128,
+            'lpPoints': ZERO_DECIMAL128,
+            'lastTimeVestedValue': ZERO_DECIMAL128,
+            'currentTimeVestedValue': ZERO_DECIMAL128,
+            'period': 0,
+            'poolBoost': ZERO_DECIMAL128,
+            'processed': False,
+        }
+        db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
 
 
 async def get_closest_block_from_timestamp(db: Database, target_timestamp: float) -> int | None:
@@ -202,3 +212,56 @@ async def get_closest_block_from_timestamp(db: Database, target_timestamp: float
     ]
     result = list(db[Collection.BLOCKS].aggregate(pipeline))
     return result[0] if result else None
+
+
+async def is_lp_leaderboard_record_processed(db: Database, dt_obj: datetime, position_record: dict,
+                                             records_to_be_inserted: list) -> bool:
+    timestamp = int(dt_obj.timestamp() * 1000)
+    block = await get_closest_block_from_timestamp(db, timestamp)
+    if not block:
+        logger.warning(f'Cannot get a block for position {position_record["positionId"]} '
+                       f'and timestamp {timestamp}. Skipping the position')
+        return False
+    event_data = {
+        'positionId': position_record['positionId'],
+        'timestamp': timestamp,
+        'block': int(block['blockNumber']),
+    }
+    records_to_be_inserted.append({
+        'event_data': event_data,
+        'position_record': position_record,
+    })
+    return True
+
+
+async def process_position_for_lp_leaderboard(db: Database, current_dt: datetime, last_updated_dt: datetime, 
+                                              position_record: dict) -> tuple[bool, list]:
+    records_to_be_inserted = []
+    missing_block = False
+    while current_dt >= last_updated_dt:
+        if not await is_lp_leaderboard_record_processed(db, last_updated_dt, position_record, records_to_be_inserted):
+            missing_block = True
+            return missing_block, []
+        last_updated_dt = last_updated_dt + timedelta(days=1)
+
+    return missing_block, records_to_be_inserted
+
+
+async def process_position_for_lp_leaderboard_for_position_transformer(db: Database, record: dict) -> tuple[bool, list]:
+    position_record = await get_position_record(db, record['positionId'])
+    last_updated_dt = convert_timestamp_to_datetime(position_record['lastUpdatedTimestamp'])
+    last_updated_dt = last_updated_dt.replace(tzinfo=timezone.utc)
+
+    current_dt = convert_timestamp_to_datetime(record['timestamp'])
+    current_dt = current_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
+    current_dt = current_dt - timedelta(days=1)
+
+    records_to_be_inserted = []
+    missing_block = False
+    while current_dt >= last_updated_dt:
+        if not await is_lp_leaderboard_record_processed(db, current_dt, position_record, records_to_be_inserted):
+            missing_block = True
+            return missing_block, []
+        current_dt = current_dt - timedelta(days=1)
+
+    return missing_block, records_to_be_inserted

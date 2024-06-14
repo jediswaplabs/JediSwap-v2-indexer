@@ -5,7 +5,7 @@ from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
 from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL, ZERO_DECIMAL
-from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot
+from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot, process_position_for_lp_leaderboard_for_position_transformer
 from server.query_utils import get_token_record, get_position_record
 from server.utils import amount_after_decimals
 
@@ -117,6 +117,11 @@ async def handle_decrease_liquidity(*args, **kwargs):
     }
 
     await update_position_record(db, record['positionId'], position_update_data)
+
+    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(db, record)
+    if not missing_block:
+        for record in records_to_be_inserted:
+            await insert_lp_leaderboard_snapshot(record['event_data'], db, position_record=record['position_record'])
 
     EventTracker.decrease_liquidity_count += 1
 

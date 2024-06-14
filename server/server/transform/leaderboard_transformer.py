@@ -14,7 +14,7 @@ from server.transform.lp_contest_updates import (
     insert_lp_leaderboard_snapshot,
     get_current_position_total_fees_usd,
     get_time_vested_value, get_pool_boost,
-    get_closest_block_from_timestamp,
+    process_position_for_lp_leaderboard
 )
 
 from structlog import get_logger
@@ -29,10 +29,19 @@ SWAP_PERCENTILE_TRESHOLD = 0.75
 
 
 async def yield_snapshot_records(db: Database, collection: str) -> dict:
-    query = {
-        'processed': False,
-    }
-    for record in db[collection].find(query):
+    pipeline = [
+        {
+            '$match': {
+                'processed': False,
+            }
+        },
+        {
+            '$sort': {
+                'timestamp': 1,
+            }
+        },
+    ]
+    for record in db[collection].aggregate(pipeline):
         yield record
 
 
@@ -55,28 +64,10 @@ async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
     
     async for position_record in yield_position_records(db):
         last_updated_dt = convert_timestamp_to_datetime(position_record['lastUpdatedTimestamp'])
-        last_updated_dt = last_updated_dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        last_updated_dt = last_updated_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
 
-        records_to_be_inserted = []
-        missing_block = False
-        while current_dt >= last_updated_dt:
-            last_updated_timestamp = int(last_updated_dt.timestamp() * 1000)
-            block = await get_closest_block_from_timestamp(db, last_updated_timestamp)
-            if not block:
-                logger.warning(f'Cannot get a block for position {position_record["positionId"]} '
-                               f'and timestamp {last_updated_timestamp}. Skipping the position')
-                missing_block = True
-                break
-            event_data = {
-                'positionId': position_record['positionId'],
-                'timestamp': last_updated_timestamp,
-                'block': int(block['blockNumber']),
-            }
-            records_to_be_inserted.append({
-                'event_data': event_data,
-                'position_record': position_record,
-            })
-            last_updated_dt = last_updated_dt + timedelta(days=1)
+        missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard(
+            db, current_dt, last_updated_dt, position_record)
         
         if not missing_block:
             for record in records_to_be_inserted:
@@ -88,19 +79,17 @@ async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
 
 async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str):
     processed_lp_records = 0
-    lp_contest_update_operation = []
-    lp_contest_snapshot_update_operation = []
 
     async for record in yield_snapshot_records(db, Collection.LP_LEADERBOARD_SNAPSHOT):
         position_record = record['position']
-
         current_position_total_fees_usd = await get_current_position_total_fees_usd(record, position_record, db, rpc_url)
         total_fees_usd = position_record['totalFeesUSD'].to_decimal()
         current_fees_usd = current_position_total_fees_usd - total_fees_usd
         if current_fees_usd < ZERO_DECIMAL:
             current_fees_usd = ZERO_DECIMAL
 
-        last_time_vested_value, current_time_vested_value, period = await get_time_vested_value(record, position_record)
+        last_time_vested_value, current_time_vested_value, period = await get_time_vested_value(
+            db, record, position_record)
 
         pool_boost = await get_pool_boost(position_record['token0Address'], position_record['token1Address'])
 
@@ -117,33 +106,30 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
         position_query = {'positionId': position_record['positionId']}
         db[Collection.POSITIONS].update_one(position_query, position_update_data)
 
-        lp_contest_snapshot_update_operation.append(
-            UpdateOne(
-                {'_id': record['_id']},
-                {'$set': {
-                    'currentFeesUsd': Decimal128(current_fees_usd),
-                    'lastTimeVestedValue': Decimal128(last_time_vested_value),
-                    'currentTimeVestedValue': Decimal128(current_time_vested_value),
-                    'period': period,
-                    'poolBoost': Decimal128(pool_boost),
-                    'lpPoints': Decimal128(points),
-                    'processed': True,
-                }}
-            ))
-        
-        lp_contest_update_operation.append(
-            UpdateOne(
-                {'userAddress': position_record['ownerAddress']},
-                {'$inc': {'points': Decimal128(points)}},
-                upsert=True
-            ))
+        lp_contest_snapshot_data = dict()
+        lp_contest_snapshot_data['$set'] = dict()
+        lp_contest_snapshot_data['$set']['currentFeesUsd'] = Decimal128(current_fees_usd)
+        lp_contest_snapshot_data['$set']['lastTimeVestedValue'] = Decimal128(last_time_vested_value)
+        lp_contest_snapshot_data['$set']['currentTimeVestedValue'] = Decimal128(current_time_vested_value)
+        lp_contest_snapshot_data['$set']['period'] = period
+        lp_contest_snapshot_data['$set']['poolBoost'] = Decimal128(pool_boost)
+        lp_contest_snapshot_data['$set']['lpPoints'] = Decimal128(points)
+        lp_contest_snapshot_data['$set']['processed'] = True
+
+        lp_contest_snapshot_query = {'_id': record['_id']}
+        db[Collection.LP_LEADERBOARD_SNAPSHOT].update_one(lp_contest_snapshot_query, lp_contest_snapshot_data)
+
+        lp_contest_data = dict()
+        lp_contest_data['$inc'] = dict()
+        lp_contest_data['$inc']['points'] = Decimal128(points)
+
+        lp_contest_query = {'userAddress': position_record['ownerAddress']}
+        db[Collection.LP_LEADERBOARD].update_one(lp_contest_query, lp_contest_data, upsert=True)
+
         processed_lp_records += 1
+        if processed_lp_records % 100 == 0:
+            logger.info(f'Processed {processed_lp_records} records')
 
-    if lp_contest_snapshot_update_operation:
-        db[Collection.LP_LEADERBOARD_SNAPSHOT].bulk_write(lp_contest_snapshot_update_operation)
-
-    if lp_contest_update_operation:
-        db[Collection.LP_LEADERBOARD].bulk_write(lp_contest_update_operation)
     logger.info(f'Successfully calculated {processed_lp_records} user records for the lp leaderboard contest')
 
 
@@ -222,6 +208,7 @@ async def calculate_volume_leaderboard_user_total_points(db: Database):
 
 
 async def process_leaderboard(mongo_url: str, mongo_database: Database, rpc_url: str):
+    logger.info('Leaderboard transformer started...')
     with MongoClient(mongo_url) as mongo:
         db_name = mongo_database.replace('-', '_')
         db = mongo[db_name]
