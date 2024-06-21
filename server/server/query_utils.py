@@ -135,6 +135,37 @@ async def get_position_record(db: Database, position_id: str) -> dict:
         position_collection.insert_one(position_record)
     return position_record
 
+async def get_teahouse_position_record(db: Database, record: dict, rpc_url: str) -> dict:
+    # events contains tx_sender field but in DB we stored ownerAddress field
+    owner_address = record.get('tx_sender') or record.get('ownerAddress')
+    position_record = db[Collection.TEAHOUSE_VAULT].find_one({
+        'poolAddress': record['poolAddress'],
+        'ownerAddress': owner_address,
+    })
+    if position_record is None:
+        pool = await get_pool_record(db, record['poolAddress'])
+        token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
+        position_record = {
+            'poolAddress': record['poolAddress'],
+            'ownerAddress': owner_address,
+            'tickLower': 0,
+            'tickUpper': 0,
+            'liquidity': 0,
+            'depositedToken0': ZERO_DECIMAL128,
+            'depositedToken1': ZERO_DECIMAL128,
+            'withdrawnToken0': ZERO_DECIMAL128,
+            'withdrawnToken1': ZERO_DECIMAL128,
+            'collectedFeesToken0': ZERO_DECIMAL128,
+            'collectedFeesToken1': ZERO_DECIMAL128,
+            'token0Address': token0['tokenAddress'],
+            'token1Address': token1['tokenAddress'],
+            'totalFeesUSD': ZERO_DECIMAL128,
+            'timeVestedValue': ZERO_DECIMAL128,
+            'lastUpdatedTimestamp': record['timestamp'],
+            'lpPoints': ZERO_DECIMAL128,
+        }
+        db[Collection.TEAHOUSE_VAULT].insert_one(position_record)
+    return position_record
 
 async def get_token_name(token_address: str, rpc_url: str) -> str:
     try:
@@ -171,7 +202,8 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
     selector = ContractFunction.get_selector(method)
     call = Call(int(contract_address, 16), selector, calldata)
     try:
-        return await rpc.call_contract(call)
+        return await rpc.call_contract(call, block_number=644332)
+        # return await rpc.call_contract(call)
     except Exception as e:
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise

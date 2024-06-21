@@ -60,8 +60,8 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     return collected_fees_usd + simulated_tx_fees_usd
 
 
-async def get_time_vested_value(db: Database, record: dict, position_record_in_event: dict) -> tuple[Decimal, Decimal, float]:
-    latest_position_record = await get_position_record(db, record['positionId'])
+async def get_time_vested_value(record: dict, position_record_in_event: dict, latest_position_record: dict
+                                ) -> tuple[Decimal, Decimal, float]:
     last_time_vested_value = latest_position_record['timeVestedValue'].to_decimal()
     period = record['timestamp'] - latest_position_record['lastUpdatedTimestamp']
     last_time_vested_value = min(Decimal(1), last_time_vested_value + Decimal(period / TIME_VESTED_CONST))
@@ -162,18 +162,24 @@ async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: 
     return token_hour_data[0]['priceUSD'].to_decimal()
 
 
-async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None, position_record: dict | None = None):
+async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None, 
+                                         position_record: dict | None = None, teahouse: bool = False):
     if not position_record:
         position_record = await get_position_record(db, event_data['positionId'])
 
+    position_id = position_record.get('positionId', '')
     lp_snapshot_query = {
-        'positionId': position_record['positionId'],
+        'positionId': position_id,
         'timestamp': event_data['timestamp'],
     }
+    if teahouse:
+        lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
+        lp_snapshot_query['position.ownerAddress'] = position_record['ownerAddress']
+
     record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
     if not record:
         lp_leaderboard_snapshot_record = {
-            'positionId': position_record['positionId'],
+            'positionId': position_id,
             'position': position_record,
             'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
             'timestamp': event_data['timestamp'],
@@ -223,7 +229,7 @@ async def is_lp_leaderboard_record_processed(db: Database, dt_obj: datetime, pos
                        f'and timestamp {timestamp}. Skipping the position')
         return False
     event_data = {
-        'positionId': position_record['positionId'],
+        'positionId': position_record.get('positionId'),
         'timestamp': timestamp,
         'block': int(block['blockNumber']),
     }
@@ -247,8 +253,8 @@ async def process_position_for_lp_leaderboard(db: Database, current_dt: datetime
     return missing_block, records_to_be_inserted
 
 
-async def process_position_for_lp_leaderboard_for_position_transformer(db: Database, record: dict) -> tuple[bool, list]:
-    position_record = await get_position_record(db, record['positionId'])
+async def process_position_for_lp_leaderboard_for_position_transformer(db: Database, record: dict, position_record: dict
+                                                                       ) -> tuple[bool, list]:
     last_updated_dt = convert_timestamp_to_datetime(position_record['lastUpdatedTimestamp'])
     last_updated_dt = last_updated_dt.replace(tzinfo=timezone.utc)
 

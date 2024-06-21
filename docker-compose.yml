@@ -49,6 +49,24 @@ services:
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
       RPC_URL: ${RPC_URL}
 
+  teahouse:
+    image: quay.io/apibara/sink-mongo:0.5.3
+    volumes:
+      - ./:/data/
+    command:
+      - run
+      - --allow-env=/data/env_mainnet
+      - --allow-env-from-env=MONGODB_CONNECTION_STRING
+      - --allow-env-from-env=RPC_URL
+      - --allow-net=
+      - /data/indexer/src/teahouse.ts
+    environment:
+      AUTH_TOKEN: ${AUTH_TOKEN}
+      SINK_ID: nft_router
+      PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
+      MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
+      RPC_URL: ${RPC_URL}
+
   event_processor:
     build:
       context: .

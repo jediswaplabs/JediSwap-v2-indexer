@@ -6,7 +6,7 @@ from pymongo.database import Database
 
 from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL, ZERO_DECIMAL
 from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot, process_position_for_lp_leaderboard_for_position_transformer
-from server.query_utils import get_token_record, get_position_record
+from server.query_utils import get_token_record, get_position_record, get_teahouse_position_record
 from server.utils import amount_after_decimals
 
 from structlog import get_logger
@@ -20,6 +20,9 @@ class EventTracker:
     increase_liquidity_count = 0
     decrease_liquidity_count = 0
     collect_count = 0
+    teahouse_add_liquidity_count = 0
+    teahouse_remove_liquidity_count = 0
+    teahouse_collect_count = 0
 
 
 async def update_position_record(db: Database, position_id: str, position_update_data: dict):
@@ -27,14 +30,14 @@ async def update_position_record(db: Database, position_id: str, position_update
     db[Collection.POSITIONS].update_one(position_query, position_update_data)
 
 
-async def yield_position_records(db: Database) -> dict:
+async def yield_position_records(db: Database, collection: str) -> dict:
     query = {
         'ownerAddress': {'$ne': ZERO_ADDRESS},
         '$or': [
             {'processed': {'$exists': False}},
             {'processed': False}
         ]}
-    for record in db[Collection.POSITIONS_DATA].find(query):
+    for record in db[collection].find(query):
         yield record
 
 
@@ -118,10 +121,12 @@ async def handle_decrease_liquidity(*args, **kwargs):
 
     await update_position_record(db, record['positionId'], position_update_data)
 
-    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(db, record)
+    position_record = await get_position_record(db, record['positionId'])
+    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
+        db, record, position_record)
     if not missing_block:
-        for record in records_to_be_inserted:
-            await insert_lp_leaderboard_snapshot(record['event_data'], db, position_record=record['position_record'])
+        for pos_record in records_to_be_inserted:
+            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'])
 
     EventTracker.decrease_liquidity_count += 1
 
@@ -180,7 +185,7 @@ async def process_positions(mongo_url: str, mongo_database: Database, rpc_url: s
     with MongoClient(mongo_url) as mongo:
         db_name = mongo_database.replace('-', '_')
         db = mongo[db_name]
-        async for record in yield_position_records(db):
+        async for record in yield_position_records(db, Collection.POSITIONS_DATA):
             event_func = EVENT_TO_FUNCTION_MAP.get(record['event'])
             if event_func:
                 await event_func(
@@ -203,7 +208,169 @@ async def process_positions(mongo_url: str, mongo_database: Database, rpc_url: s
     EventTracker.collect_count = 0
 
 
+async def update_teahouse_position_record(db: Database, pool_address: str, owner_address: str, position_update_data: dict):
+    position_query = {
+        'poolAddress': pool_address,
+        'ownerAddress': owner_address,
+    }
+    db[Collection.TEAHOUSE_VAULT].update_one(position_query, position_update_data)
+
+
+async def handle_teahouse_add_liquidity(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
+
+    del record['event']
+    logger.info("handle Teahouse AddLiquidity", **record)
+
+    position_record = await get_teahouse_position_record(db, record, rpc_url)
+
+    token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
+    token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
+
+    amount0 = await amount_after_decimals(record['depositedToken0'], token0.get('decimals', DEFAULT_DECIMALS))
+    amount1 = await amount_after_decimals(record['depositedToken1'], token1.get('decimals', DEFAULT_DECIMALS))
+
+    position_record.update({
+        'tickLower': record['tickLower'],
+        'tickUpper': record['tickUpper'],
+    })
+    await insert_lp_leaderboard_snapshot(record, db, Event.INCREASE_LIQUIDITY, position_record, teahouse=True)
+
+    position_update_data = dict()
+    position_update_data['$inc'] = dict()
+    position_update_data['$inc']['liquidity'] = record['liquidity']
+    position_update_data['$inc']['depositedToken0'] = Decimal128(amount0)
+    position_update_data['$inc']['depositedToken1'] = Decimal128(amount1)
+    position_update_data['$set'] = dict()
+    position_update_data['$set']['tickLower'] = record['tickLower']
+    position_update_data['$set']['tickUpper'] = record['tickUpper']
+
+    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+
+    EventTracker.teahouse_add_liquidity_count += 1
+
+
+async def handle_teahouse_remove_liquidity(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
+
+    del record['event']
+    logger.info("handle Teahouse RemoveLiquidity", **record)
+
+    position_record = await get_teahouse_position_record(db, record, rpc_url)
+
+    token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
+    token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
+
+    amount0 = await amount_after_decimals(record['withdrawnToken0'], token0.get('decimals', DEFAULT_DECIMALS))
+    amount1 = await amount_after_decimals(record['withdrawnToken1'], token1.get('decimals', DEFAULT_DECIMALS))
+
+    position_record.update({
+        'tickLower': record['tickLower'],
+        'tickUpper': record['tickUpper'],
+    })
+    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY, position_record, teahouse=True)
+
+    position_update_data = dict()
+    position_update_data['$inc'] = dict()
+    position_update_data['$inc']['liquidity'] = -record['liquidity']
+    position_update_data['$inc']['withdrawnToken0'] = Decimal128(amount0)
+    position_update_data['$inc']['withdrawnToken1'] = Decimal128(amount1)
+    position_update_data['$set'] = dict()
+    position_update_data['$set']['tickLower'] = record['tickLower']
+    position_update_data['$set']['tickUpper'] = record['tickUpper']
+
+    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+
+    position_record = await get_teahouse_position_record(db, record, rpc_url)
+    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
+        db, record, position_record)
+    if not missing_block:
+        for pos_record in records_to_be_inserted:
+            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'], teahouse=True)
+
+    EventTracker.teahouse_remove_liquidity_count += 1
+
+
+async def handle_teahouse_collect(*args, **kwargs):
+    db = kwargs['db']
+    record = kwargs['record']
+    rpc_url = kwargs['rpc_url']
+
+    del record['event']
+    logger.info("handle Teahouse Collect", **record)
+
+    if db[Collection.TEAHOUSE_VAULT_DATA].find_one({
+        'poolAddress': record['poolAddress'],
+        'tx_sender': record['tx_sender'],
+        'event': Event.REMOVE_LIQUIDITY,
+        'timestamp': record['timestamp'],
+        'withdrawnToken0': record['collectedFeesToken0'],
+        'withdrawnToken1': record['collectedFeesToken1'],
+    }):
+        # skip Collect events that have the same amount of collected fees as withdrawn tokens for RemoveLiquidity event 
+        EventTracker.teahouse_collect_count += 1
+        return
+    
+    position_record = await get_teahouse_position_record(db, record, rpc_url)
+
+    token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
+    token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
+
+    token0_decimals = token0.get('decimals', DEFAULT_DECIMALS)
+    token1_decimals = token1.get('decimals', DEFAULT_DECIMALS)
+
+    collected_amount0 = await amount_after_decimals(record['collectedFeesToken0'], token0_decimals)
+    collected_amount1 = await amount_after_decimals(record['collectedFeesToken1'], token1_decimals)
+
+    position_update_data = dict()
+    position_update_data['$inc'] = dict()
+    position_update_data['$inc']['collectedFeesToken0'] = Decimal128(collected_amount0)
+    position_update_data['$inc']['collectedFeesToken1'] = Decimal128(collected_amount1)
+
+    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+
+    EventTracker.teahouse_collect_count += 1
+
+
+TEAHOUSE_EVENT_TO_FUNCTION_MAP = {
+    Event.ADD_LIQUIDITY: handle_teahouse_add_liquidity,
+    Event.REMOVE_LIQUIDITY: handle_teahouse_remove_liquidity,
+    Event.COLLECT: handle_teahouse_collect,
+}
+
+
+async def process_teahouse_positions(mongo_url: str, mongo_database: Database, rpc_url: str):
+    processed_records = []
+    with MongoClient(mongo_url) as mongo:
+        db_name = mongo_database.replace('-', '_')
+        db = mongo[db_name]
+        async for record in yield_position_records(db, Collection.TEAHOUSE_VAULT_DATA):
+            event_func = TEAHOUSE_EVENT_TO_FUNCTION_MAP.get(record['event'])
+            if event_func:
+                await event_func(
+                    db=db, 
+                    record=record,
+                    rpc_url=rpc_url)
+                processed_records.append(
+                    UpdateOne({"_id": record['_id']}, {"$set": {"processed": True}})
+                )
+        if processed_records:
+            db[Collection.TEAHOUSE_VAULT_DATA].bulk_write(processed_records)
+
+    logger.info(f"Successfully processed {EventTracker.teahouse_add_liquidity_count} Teahouse's AddLiquidity events")
+    logger.info(f"Successfully processed {EventTracker.teahouse_remove_liquidity_count} Teahouse's RemoveLiquidity events")
+    logger.info(f"Successfully processed {EventTracker.teahouse_collect_count} Teahouse's Collect events")
+    EventTracker.teahouse_add_liquidity_count = 0
+    EventTracker.teahouse_remove_liquidity_count = 0
+    EventTracker.teahouse_collect_count = 0
+
+
 async def run_positions_transformer(mongo_url: str, mongo_database: Database, rpc_url: str):
     while True:
         await process_positions(mongo_url, mongo_database, rpc_url)
+        await process_teahouse_positions(mongo_url, mongo_database, rpc_url)
         time.sleep(TIME_INTERVAL)

@@ -11,6 +11,8 @@ class Collection:
     POOLS_DATA = 'pools_data'
     POSITIONS = 'positions'
     POSITIONS_DATA = 'positions_data'
+    TEAHOUSE_VAULT = 'teahouse_vault'
+    TEAHOUSE_VAULT_DATA = 'teahouse_vault_data'
     TOKENS = 'tokens'
     FACTORIES = 'factories'
     FACTORIES_DAY_DATA = 'factories_day_data'
@@ -34,7 +36,9 @@ class Event:
     MINT = 'Mint'
     BURN = 'Burn'
     SWAP = 'Swap'
-    
+    ADD_LIQUIDITY = 'AddLiquidity'
+    REMOVE_LIQUIDITY = 'RemoveLiquidity'
+
 
 FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
 

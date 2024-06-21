@@ -15,8 +15,9 @@ from server.const import Collection
 
 @strawberry.type
 class LpLeaderboardSnapshot:
-    positionId: int
+    positionId: str
     ownerAddress: str
+    poolAddress: str
     liquidity: Decimal
     calculationAt: str
     block: int
@@ -36,8 +37,9 @@ class LpLeaderboardSnapshot:
         calculation_at_dt = convert_timestamp_to_datetime(data['timestamp']).astimezone(pytz.utc)
         calculation_at = calculation_at_dt.strftime("%Y-%m-%d %H:%M:%S %Z %z")
         return cls(
-            positionId=data['positionId'],
+            positionId=str(data['positionId']),
             ownerAddress=data['position']['ownerAddress'],
+            poolAddress=data['position'].get('poolAddress', ''),
             liquidity=liquidity,
             calculationAt=calculation_at,
             block=data['block'],
@@ -63,6 +65,8 @@ async def get_lp_leaderboard_snapshot(
             query['positionId'] = where.position_id
         if where.owner_address is not None:
             query['position.ownerAddress'] = format_address(where.owner_address)
+        if where.pool_address is not None:
+            query['position.poolAddress'] = format_address(where.pool_address)
 
     cursor = db[Collection.LP_LEADERBOARD_SNAPSHOT].find(query, skip=skip, limit=first)
     cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)

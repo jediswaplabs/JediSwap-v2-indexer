@@ -64,6 +64,7 @@ class WhereFilterForUser:
 class WhereFilterForNftPosition:
     position_id: Optional[int] = None
     owner_address: Optional[str] = None
+    pool_address: Optional[str] = None
 
 
 async def add_block_constraint(query: dict, block: Optional[BlockFilter]):

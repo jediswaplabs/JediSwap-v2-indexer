@@ -67,6 +67,8 @@ async def get_nft_positions(
             query['positionId'] = where.position_id
         if where.owner_address is not None:
             query['ownerAddress'] = format_address(where.owner_address)
+        if where.pool_address is not None:
+            query['position.poolAddress'] = format_address(where.pool_address)
 
     cursor = db[Collection.POSITIONS].find(query, skip=skip, limit=first)
     cursor = await add_order_by_constraint(cursor, orderBy, orderByDirection)

@@ -16,6 +16,7 @@ from server.transform.lp_contest_updates import (
     get_time_vested_value, get_pool_boost,
     process_position_for_lp_leaderboard
 )
+from server.query_utils import get_position_record, get_teahouse_position_record
 
 from structlog import get_logger
 
@@ -28,12 +29,87 @@ LAST_SWAPS_PERIOD_IN_HOURS = 24
 SWAP_PERCENTILE_TRESHOLD = 0.75
 
 
-async def yield_snapshot_records(db: Database, collection: str) -> dict:
+class NftPosition:
+    collection = ''
+    log_msg = ''
+    lp_snapshot_query = {}
+    teahouse = False
+
+    @staticmethod
+    async def get_latest_position(*args, **kwargs) -> dict:
+        pass 
+
+    @staticmethod
+    async def update_position(db: Database, position_record: dict, position_update_data: dict):
+        pass
+
+
+class JediSwapPosition(NftPosition):
+    collection = Collection.POSITIONS
+    lp_snapshot_query = {
+        '$and': [
+            {
+                'positionId': {
+                    '$ne': ''
+                }
+            },
+            {'processed': False}
+        ]
+    }
+
+    @staticmethod
+    async def get_latest_position(*args, **kwargs) -> dict:
+        db = kwargs['db']
+        record = kwargs['record']
+        return await get_position_record(db, record['positionId'])
+
+    @staticmethod
+    async def update_position(db: Database, position_record: dict, position_update_data: dict):
+        position_query = {'positionId': position_record['positionId']}
+        db[JediSwapPosition.collection].update_one(position_query, position_update_data)
+
+
+class TeahousePosition(NftPosition):
+    collection = Collection.TEAHOUSE_VAULT
+    log_msg = 'teahouse '
+    lp_snapshot_query = {
+        '$and': [
+            {
+                '$or': [
+                    {'positionId': None},
+                    {'positionId': ''}
+                ]
+            },
+            {'processed': False}
+        ]
+    }
+    teahouse = True
+
+    @staticmethod
+    async def get_latest_position(*args, **kwargs) -> dict:
+        db = kwargs['db']
+        record = kwargs['record']
+        rpc_url = kwargs['rpc_url']
+        return await get_teahouse_position_record(db, record['position'], rpc_url)
+
+    @staticmethod
+    async def update_position(db: Database, position_record: dict, position_update_data: dict):
+        position_query = {
+            'poolAddress': position_record['poolAddress'],
+            'ownerAddress': position_record['ownerAddress'],
+        }
+        db[TeahousePosition.collection].update_one(position_query, position_update_data)
+
+
+async def yield_snapshot_records(db: Database, collection: str, match_query: dict | None = None) -> dict:
+    if match_query is None:
+        match_query = {
+            'processed': False,
+        }
+
     pipeline = [
         {
-            '$match': {
-                'processed': False,
-            }
+            '$match': match_query
         },
         {
             '$sort': {
@@ -45,15 +121,15 @@ async def yield_snapshot_records(db: Database, collection: str) -> dict:
         yield record
 
 
-async def yield_position_records(db: Database) -> dict:
+async def yield_position_records(db: Database, collection: str) -> dict:
     query = {
         'liquidity': {'$ne': 0},
     }
-    for record in db[Collection.POSITIONS].find(query):
+    for record in db[collection].find(query):
         yield record
 
 
-async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
+async def handle_positions_for_lp_leaderboard(db: Database, position_class: NftPosition):
     # ensure that the transformer runs after 00:00
     await asyncio.sleep(1)
 
@@ -62,7 +138,7 @@ async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
     current_dt = current_dt - timedelta(days=1)
     current_dt = current_dt.replace(hour=23, minute=59, second=59)
     
-    async for position_record in yield_position_records(db):
+    async for position_record in yield_position_records(db, position_class.collection):
         last_updated_dt = convert_timestamp_to_datetime(position_record['lastUpdatedTimestamp'])
         last_updated_dt = last_updated_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
 
@@ -71,16 +147,18 @@ async def handle_positions_for_lp_leaderboard(db: Database, rpc_url: str):
         
         if not missing_block:
             for record in records_to_be_inserted:
-                await insert_lp_leaderboard_snapshot(record['event_data'], db, position_record=record['position_record'])
+                await insert_lp_leaderboard_snapshot(record['event_data'], db, position_record=record['position_record'],
+                                                     teahouse=position_class.teahouse)
             processed_positions_records += 1
 
-    logger.info(f'Successfully processed {processed_positions_records} Positions records for the leaderboard contest')
+    logger.info(f'Successfully processed {processed_positions_records} {position_class.log_msg}Positions records '
+                f'for the leaderboard contest')
 
 
-async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str):
+async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str, position_class: NftPosition):
     processed_lp_records = 0
 
-    async for record in yield_snapshot_records(db, Collection.LP_LEADERBOARD_SNAPSHOT):
+    async for record in yield_snapshot_records(db, Collection.LP_LEADERBOARD_SNAPSHOT, position_class.lp_snapshot_query):
         position_record = record['position']
         current_position_total_fees_usd = await get_current_position_total_fees_usd(record, position_record, db, rpc_url)
         total_fees_usd = position_record['totalFeesUSD'].to_decimal()
@@ -88,8 +166,9 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
         if current_fees_usd < ZERO_DECIMAL:
             current_fees_usd = ZERO_DECIMAL
 
+        latest_position_record = await position_class.get_latest_position(db=db, record=record, rpc_url=rpc_url)
         last_time_vested_value, current_time_vested_value, period = await get_time_vested_value(
-            db, record, position_record)
+            record, position_record, latest_position_record)
 
         pool_boost = await get_pool_boost(position_record['token0Address'], position_record['token1Address'])
 
@@ -103,8 +182,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
         position_update_data['$set']['lastUpdatedTimestamp'] = record['timestamp']
         position_update_data['$inc']['lpPoints'] = Decimal128(points)
 
-        position_query = {'positionId': position_record['positionId']}
-        db[Collection.POSITIONS].update_one(position_query, position_update_data)
+        await position_class.update_position(db, position_record, position_update_data)
 
         lp_contest_snapshot_data = dict()
         lp_contest_snapshot_data['$set'] = dict()
@@ -130,7 +208,8 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str)
         if processed_lp_records % 100 == 0:
             logger.info(f'Processed {processed_lp_records} records')
 
-    logger.info(f'Successfully calculated {processed_lp_records} user records for the lp leaderboard contest')
+    logger.info(f'Successfully calculated {processed_lp_records} {position_class.log_msg}user records '
+                f'for the lp leaderboard contest')
 
 
 async def insert_volume_leaderboard_snapshot(db: Database, fess_usd: Decimal, record: dict):
@@ -212,8 +291,11 @@ async def process_leaderboard(mongo_url: str, mongo_database: Database, rpc_url:
     with MongoClient(mongo_url) as mongo:
         db_name = mongo_database.replace('-', '_')
         db = mongo[db_name]
-        await handle_positions_for_lp_leaderboard(db, rpc_url)
-        await calculate_lp_leaderboard_user_total_points(db, rpc_url)
+        await handle_positions_for_lp_leaderboard(db, JediSwapPosition)
+        await calculate_lp_leaderboard_user_total_points(db, rpc_url, JediSwapPosition)
+        # TODO: uncomment after updating the simulate tx in the `get_current_position_total_fees_usd` function
+        # await handle_positions_for_lp_leaderboard(db, TeahousePosition)
+        # await calculate_lp_leaderboard_user_total_points(db, rpc_url, TeahousePosition)
         await calculate_volume_leaderboard_user_total_points(db)
 
 

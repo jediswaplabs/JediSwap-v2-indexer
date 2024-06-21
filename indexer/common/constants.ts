@@ -10,6 +10,7 @@ export const COLLECTION_NAMES = {
   POOLS: 'pools',
   POOLS_DATA: 'pools_data',
   POSITIONS_DATA: 'positions_data',
+  TEAHOUSE_VAULT_DATA: 'teahouse_vault_data',
 }
 
 export const EVENTS = {
@@ -23,6 +24,8 @@ export const EVENTS = {
   MINT: 'Mint',
   BURN: 'Burn',
   SWAP: 'Swap',
+  ADD_LIQUIDITY: 'AddLiquidity',
+  REMOVE_LIQUIDITY: 'RemoveLiquidity',
 }
 
 export const SELECTOR_KEYS = {
@@ -36,6 +39,8 @@ export const SELECTOR_KEYS = {
   MINT: formatSelectorKey(EVENTS.MINT),
   BURN: formatSelectorKey(EVENTS.BURN),
   SWAP: formatSelectorKey(EVENTS.SWAP),
+  ADD_LIQUIDITY: formatSelectorKey(EVENTS.ADD_LIQUIDITY),
+  REMOVE_LIQUIDITY: formatSelectorKey(EVENTS.REMOVE_LIQUIDITY),
 };
 
 export const FACTORY_CONTRACT = Deno.env.get(
@@ -45,6 +50,10 @@ const NFT_ROUTER_CONTRACTS_STRING = Deno.env.get(
   "NFT_ROUTER_CONTRACTS"
 ) as string;
 export const NFT_ROUTER_CONTRACTS = NFT_ROUTER_CONTRACTS_STRING.split(",");
+const TEAHOUSE_VAULT_CONTRACTS_STRING = Deno.env.get(
+  "TEAHOUSE_VAULT_CONTRACT"
+) as string;
+export const TEAHOUSE_VAULT_CONTRACTS = TEAHOUSE_VAULT_CONTRACTS_STRING.split(",");
 export const INDEX_FROM_BLOCK = Number(Deno.env.get(
   "INDEX_FROM_BLOCK"))
 export const STREAM_URL = Deno.env.get(
