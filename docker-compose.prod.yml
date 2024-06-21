@@ -62,7 +62,7 @@ services:
       - /data/indexer/src/teahouse.ts
     environment:
       AUTH_TOKEN: ${AUTH_TOKEN}
-      SINK_ID: nft_router
+      SINK_ID: teahouse
       PERSIST_TO_REDIS: ${PERSIST_TO_REDIS}
       MONGODB_CONNECTION_STRING: ${MONGODB_CONNECTION_STRING}
       RPC_URL: ${RPC_URL}

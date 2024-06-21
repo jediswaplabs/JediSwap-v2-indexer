@@ -202,8 +202,7 @@ async def simple_call(contract_address: str, method: str, calldata: List[int], r
     selector = ContractFunction.get_selector(method)
     call = Call(int(contract_address, 16), selector, calldata)
     try:
-        return await rpc.call_contract(call, block_number=644332)
-        # return await rpc.call_contract(call)
+        return await rpc.call_contract(call)
     except Exception as e:
         logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
         raise
