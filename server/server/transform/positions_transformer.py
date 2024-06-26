@@ -208,10 +208,9 @@ async def process_positions(mongo_url: str, mongo_database: Database, rpc_url: s
     EventTracker.collect_count = 0
 
 
-async def update_teahouse_position_record(db: Database, pool_address: str, owner_address: str, position_update_data: dict):
+async def update_teahouse_position_record(db: Database, pool_address: str, position_update_data: dict):
     position_query = {
         'poolAddress': pool_address,
-        'ownerAddress': owner_address,
     }
     db[Collection.TEAHOUSE_VAULT].update_one(position_query, position_update_data)
 
@@ -246,8 +245,9 @@ async def handle_teahouse_add_liquidity(*args, **kwargs):
     position_update_data['$set'] = dict()
     position_update_data['$set']['tickLower'] = record['tickLower']
     position_update_data['$set']['tickUpper'] = record['tickUpper']
+    position_update_data['$set']['ownerAddress'] = record['tx_sender']
 
-    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+    await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
 
     EventTracker.teahouse_add_liquidity_count += 1
 
@@ -282,8 +282,9 @@ async def handle_teahouse_remove_liquidity(*args, **kwargs):
     position_update_data['$set'] = dict()
     position_update_data['$set']['tickLower'] = record['tickLower']
     position_update_data['$set']['tickUpper'] = record['tickUpper']
+    position_update_data['$set']['ownerAddress'] = record['tx_sender']
 
-    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+    await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
 
     position_record = await get_teahouse_position_record(db, record, rpc_url)
     missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
@@ -331,7 +332,7 @@ async def handle_teahouse_collect(*args, **kwargs):
     position_update_data['$inc']['collectedFeesToken0'] = Decimal128(collected_amount0)
     position_update_data['$inc']['collectedFeesToken1'] = Decimal128(collected_amount1)
 
-    await update_teahouse_position_record(db, record['poolAddress'], record['tx_sender'], position_update_data)
+    await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
 
     EventTracker.teahouse_collect_count += 1
 

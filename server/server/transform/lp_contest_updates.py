@@ -36,13 +36,14 @@ async def get_pool_boost(token0_address: str, token1_address: str) -> Decimal:
         return Decimal(1)
 
 
-async def get_current_position_total_fees_usd(event_data: dict, position_record: dict, db: Database, rpc_url: str) -> Decimal:
+async def get_current_position_total_fees_usd(event_data: dict, position_record: dict, db: Database, rpc_url: str, 
+                                              get_uncollected_fees_func: callable) -> Decimal:
     simulated_tx_fees_usd = 0
     hour_id, _ = await get_hour_id(event_data['timestamp'])
     token0_price = await get_token_price_by_hour_id(db, hour_id, position_record['token0Address'])
     token1_price = await get_token_price_by_hour_id(db, hour_id, position_record['token1Address'])
     
-    token0_fees, token1_fees = await simulate_collect_tx(rpc_url, position_record, event_data['block'])
+    token0_fees, token1_fees = await get_uncollected_fees_func(rpc_url, position_record, event_data['block'])
     if token0_fees or token1_fees:
         token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
         token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
@@ -173,8 +174,9 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
         'timestamp': event_data['timestamp'],
     }
     if teahouse:
+        lp_snapshot_query['position.vaultAddress'] = position_record['vaultAddress']
         lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
-        lp_snapshot_query['position.ownerAddress'] = position_record['ownerAddress']
+        lp_snapshot_query['position.event'] = event
 
     record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
     if not record:

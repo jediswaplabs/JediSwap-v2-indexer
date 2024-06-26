@@ -16,6 +16,7 @@ from server.const import Collection
 @strawberry.type
 class LpLeaderboardSnapshot:
     positionId: str
+    vaultAddress: str
     ownerAddress: str
     poolAddress: str
     liquidity: Decimal
@@ -38,6 +39,7 @@ class LpLeaderboardSnapshot:
         calculation_at = calculation_at_dt.strftime("%Y-%m-%d %H:%M:%S %Z %z")
         return cls(
             positionId=str(data['positionId']),
+            vaultAddress=data['position'].get('vaultAddress', ''),
             ownerAddress=data['position']['ownerAddress'],
             poolAddress=data['position'].get('poolAddress', ''),
             liquidity=liquidity,

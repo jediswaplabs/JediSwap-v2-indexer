@@ -136,18 +136,17 @@ async def get_position_record(db: Database, position_id: str) -> dict:
     return position_record
 
 async def get_teahouse_position_record(db: Database, record: dict, rpc_url: str) -> dict:
-    # events contains tx_sender field but in DB we stored ownerAddress field
-    owner_address = record.get('tx_sender') or record.get('ownerAddress')
     position_record = db[Collection.TEAHOUSE_VAULT].find_one({
         'poolAddress': record['poolAddress'],
-        'ownerAddress': owner_address,
     })
     if position_record is None:
         pool = await get_pool_record(db, record['poolAddress'])
         token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
         position_record = {
+            'vaultAddress': record['vaultAddress'],
             'poolAddress': record['poolAddress'],
-            'ownerAddress': owner_address,
+            # events contains tx_sender field but in DB we stored ownerAddress field
+            'ownerAddress': record.get('tx_sender') or record.get('ownerAddress'),
             'tickLower': 0,
             'tickUpper': 0,
             'liquidity': 0,
@@ -197,14 +196,15 @@ async def get_token_decimals(token_address: str, rpc_url: str) -> int:
             return 0
     return result[0]
     
-async def simple_call(contract_address: str, method: str, calldata: List[int], rpc_url: str):
+async def simple_call(contract_address: str, method: str, calldata: List[int], rpc_url: str, block_number: int | str = 'latest'):
     rpc = FullNodeClient(node_url=rpc_url)
     selector = ContractFunction.get_selector(method)
     call = Call(int(contract_address, 16), selector, calldata)
     try:
-        return await rpc.call_contract(call)
+        return await rpc.call_contract(call, block_number=block_number)
     except Exception as e:
-        logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
+        logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata, 
+                    block_number=block_number)  
         raise
 
 async def simulate_tx(tx: Any, rpc_url: str, block_number: int):

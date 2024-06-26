@@ -50,6 +50,7 @@ export default async function transform({ header, events }: Block) {
       tx_hash: formatFelt(transaction.meta.hash),
       tx_sender: senderAddress(transaction),
     };
+    const vaultAddress = formatFelt(event.fromAddress);
     const key = event.keys[0];
     switch (key) {
       case SELECTOR_KEYS.ADD_LIQUIDITY: {
@@ -61,6 +62,7 @@ export default async function transform({ header, events }: Block) {
         const amount1 = formatU256(event.data[7], event.data[8]);
         return {
           event: EVENTS.ADD_LIQUIDITY,
+          vaultAddress,
           poolAddress,
           depositedToken0: amount0,
           depositedToken1: amount1,
@@ -79,6 +81,7 @@ export default async function transform({ header, events }: Block) {
         const amount1 = formatU256(event.data[7], event.data[8]);
         return {
           event: EVENTS.REMOVE_LIQUIDITY,
+          vaultAddress,
           poolAddress,
           withdrawnToken0: amount0,
           withdrawnToken1: amount1,
@@ -96,6 +99,7 @@ export default async function transform({ header, events }: Block) {
         const amount1_collect = Number(event.data[5]);
         return {
           event: EVENTS.COLLECT,
+          vaultAddress,
           poolAddress,
           collectedFeesToken0: amount0_collect,
           collectedFeesToken1: amount1_collect,
