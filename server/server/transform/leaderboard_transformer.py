@@ -34,6 +34,7 @@ class NftPosition:
     collection = ''
     log_msg = ''
     lp_snapshot_query = {}
+    lp_contest_user_key = 'ownerAddress'
     teahouse = False
 
     @staticmethod
@@ -92,6 +93,7 @@ class TeahousePosition(NftPosition):
             {'processed': False}
         ]
     }
+    lp_contest_user_key = 'vaultAddress'
     teahouse = True
 
     @staticmethod
@@ -223,7 +225,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str,
         lp_contest_data['$inc'] = dict()
         lp_contest_data['$inc']['points'] = Decimal128(points)
 
-        lp_contest_query = {'userAddress': position_record['ownerAddress']}
+        lp_contest_query = {'userAddress': position_record[position_class.lp_contest_user_key]}
         db[Collection.LP_LEADERBOARD].update_one(lp_contest_query, lp_contest_data, upsert=True)
 
         processed_lp_records += 1
