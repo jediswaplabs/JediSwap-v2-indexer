@@ -118,7 +118,7 @@ class TeahousePosition(NftPosition):
             except Exception:
                 logger.warn('Trying to call the previous block...')
                 result = await simple_call(position_record['vaultAddress'], 'all_position_info', [], rpc_url, block_number=block-1)
-            return result[-2], result[-1]
+            return result[-4], result[-2]
         except Exception:
             logger.warn(f"Couldn't fetch fees from Teahouse position {position_record['poolAddress']} for {block} block")
             return ZERO_DECIMAL, ZERO_DECIMAL

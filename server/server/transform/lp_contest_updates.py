@@ -71,7 +71,7 @@ async def get_time_vested_value(record: dict, position_record_in_event: dict, la
         current_time_vested_value = ZERO_DECIMAL
     elif record['event'] == Event.INCREASE_LIQUIDITY:
         current_liquidity = Decimal(position_record_in_event['liquidity'])
-        new_liquidity = Decimal(record['liquidity'])
+        new_liquidity = current_liquidity + Decimal(record['liquidity'])
         if not current_liquidity:
             current_liquidity = new_liquidity
         current_time_vested_value = last_time_vested_value * Decimal(1) / (new_liquidity / current_liquidity)
