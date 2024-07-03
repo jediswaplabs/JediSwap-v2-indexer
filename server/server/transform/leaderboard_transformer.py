@@ -118,6 +118,7 @@ class TeahousePosition(NftPosition):
             except Exception:
                 logger.warn('Trying to call the previous block...')
                 result = await simple_call(position_record['vaultAddress'], 'all_position_info', [], rpc_url, block_number=block-1)
+                logger.info('Success!')
             return result[-4], result[-2]
         except Exception:
             logger.warn(f"Couldn't fetch fees from Teahouse position {position_record['poolAddress']} for {block} block")
@@ -182,35 +183,41 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str,
     processed_lp_records = 0
 
     async for record in yield_snapshot_records(db, Collection.LP_LEADERBOARD_SNAPSHOT, position_class.lp_snapshot_query):
-        position_record = record['position']
-        current_position_total_fees_usd = await get_current_position_total_fees_usd(record, position_record, db, rpc_url, 
-                                                                                    position_class.get_uncollected_fees)
-        total_fees_usd = position_record['totalFeesUSD'].to_decimal()
-        current_fees_usd = current_position_total_fees_usd - total_fees_usd
+        position_record_in_event = record['position']
+        latest_position_record = await position_class.get_latest_position(db=db, record=record, rpc_url=rpc_url)
+
+        current_fees_usd, token0_fees_current, token1_fees_current, token0_price, token1_price = await get_current_position_total_fees_usd(
+            record, latest_position_record, record, db, rpc_url, position_class.get_uncollected_fees)
         if current_fees_usd < ZERO_DECIMAL:
             current_fees_usd = ZERO_DECIMAL
-
-        latest_position_record = await position_class.get_latest_position(db=db, record=record, rpc_url=rpc_url)
+        
         last_time_vested_value, current_time_vested_value, period = await get_time_vested_value(
-            record, position_record, latest_position_record)
+            record, position_record_in_event, latest_position_record)
 
-        pool_boost = await get_pool_boost(position_record['token0Address'], position_record['token1Address'])
+        pool_boost = await get_pool_boost(latest_position_record['token0Address'], latest_position_record['token1Address'])
 
         points = current_fees_usd * last_time_vested_value * pool_boost * Decimal(1000)
 
         position_update_data = dict()
         position_update_data['$set'] = dict()
         position_update_data['$inc'] = dict()
-        position_update_data['$set']['totalFeesUSD'] = Decimal128(current_position_total_fees_usd)
+        position_update_data['$set']['lastUnclaimedFeesToken0'] = Decimal128(token0_fees_current)
+        position_update_data['$set']['lastUnclaimedFeesToken1'] = Decimal128(token1_fees_current)
         position_update_data['$set']['timeVestedValue'] = Decimal128(current_time_vested_value)
         position_update_data['$set']['lastUpdatedTimestamp'] = record['timestamp']
         position_update_data['$inc']['lpPoints'] = Decimal128(points)
 
-        await position_class.update_position(db, position_record, position_update_data)
+        await position_class.update_position(db, latest_position_record, position_update_data)
 
         lp_contest_snapshot_data = dict()
         lp_contest_snapshot_data['$set'] = dict()
         lp_contest_snapshot_data['$set']['currentFeesUsd'] = Decimal128(current_fees_usd)
+        lp_contest_snapshot_data['$set']['lastUnclaimedFeesToken0'] = latest_position_record['lastUnclaimedFeesToken0']
+        lp_contest_snapshot_data['$set']['lastUnclaimedFeesToken1'] = latest_position_record['lastUnclaimedFeesToken1']
+        lp_contest_snapshot_data['$set']['currentUnclaimedFeesToken0'] = Decimal128(token0_fees_current)
+        lp_contest_snapshot_data['$set']['currentUnclaimedFeesToken1'] = Decimal128(token1_fees_current)
+        lp_contest_snapshot_data['$set']['token0Price'] = Decimal128(token0_price)
+        lp_contest_snapshot_data['$set']['token1Price'] = Decimal128(token1_price)
         lp_contest_snapshot_data['$set']['lastTimeVestedValue'] = Decimal128(last_time_vested_value)
         lp_contest_snapshot_data['$set']['currentTimeVestedValue'] = Decimal128(current_time_vested_value)
         lp_contest_snapshot_data['$set']['period'] = period
@@ -225,7 +232,7 @@ async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str,
         lp_contest_data['$inc'] = dict()
         lp_contest_data['$inc']['points'] = Decimal128(points)
 
-        lp_contest_query = {'userAddress': position_record[position_class.lp_contest_user_key]}
+        lp_contest_query = {'userAddress': latest_position_record[position_class.lp_contest_user_key]}
         db[Collection.LP_LEADERBOARD].update_one(lp_contest_query, lp_contest_data, upsert=True)
 
         processed_lp_records += 1

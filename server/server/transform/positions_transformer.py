@@ -5,7 +5,11 @@ from pymongo import MongoClient, UpdateOne
 from pymongo.database import Database
 
 from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME_INTERVAL, ZERO_DECIMAL
-from server.transform.lp_contest_updates import insert_lp_leaderboard_snapshot, process_position_for_lp_leaderboard_for_position_transformer
+from server.transform.lp_contest_updates import (
+    insert_lp_leaderboard_snapshot, 
+    process_position_for_lp_leaderboard_for_position_transformer, 
+    insert_lp_leaderboard_snapshot_collect_event
+)
 from server.query_utils import get_token_record, get_position_record, get_teahouse_position_record
 from server.utils import amount_after_decimals
 
@@ -109,7 +113,14 @@ async def handle_decrease_liquidity(*args, **kwargs):
     amount0 = await amount_after_decimals(record['withdrawnToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['withdrawnToken1'], token1.get('decimals', DEFAULT_DECIMALS))
 
-    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY)
+    position_record = await get_position_record(db, record['positionId'])
+    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY, position_record)
+
+    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
+        db, record, position_record)
+    if not missing_block:
+        for pos_record in records_to_be_inserted:
+            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'])
 
     position_update_data = {
         '$inc': {
@@ -120,13 +131,6 @@ async def handle_decrease_liquidity(*args, **kwargs):
     }
 
     await update_position_record(db, record['positionId'], position_update_data)
-
-    position_record = await get_position_record(db, record['positionId'])
-    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
-        db, record, position_record)
-    if not missing_block:
-        for pos_record in records_to_be_inserted:
-            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'])
 
     EventTracker.decrease_liquidity_count += 1
 
@@ -168,6 +172,10 @@ async def handle_collect(*args, **kwargs):
     }
 
     await update_position_record(db, record['positionId'], position_update_data)
+
+    position_record = await get_position_record(db, record['positionId'])
+    await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record=position_record,
+                                                       amount0_fees=amount0, amount1_fees=amount1)
 
     EventTracker.collect_count += 1
 
@@ -268,11 +276,18 @@ async def handle_teahouse_remove_liquidity(*args, **kwargs):
     amount0 = await amount_after_decimals(record['withdrawnToken0'], token0.get('decimals', DEFAULT_DECIMALS))
     amount1 = await amount_after_decimals(record['withdrawnToken1'], token1.get('decimals', DEFAULT_DECIMALS))
 
-    position_record.update({
+    new_position_record = position_record.copy()
+    new_position_record.update({
         'tickLower': record['tickLower'],
         'tickUpper': record['tickUpper'],
     })
-    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY, position_record, teahouse=True)
+    await insert_lp_leaderboard_snapshot(record, db, Event.DECREASE_LIQUIDITY, new_position_record, teahouse=True)
+
+    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
+        db, record, position_record)
+    if not missing_block:
+        for pos_record in records_to_be_inserted:
+            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'], teahouse=True)
 
     position_update_data = dict()
     position_update_data['$inc'] = dict()
@@ -285,13 +300,6 @@ async def handle_teahouse_remove_liquidity(*args, **kwargs):
     position_update_data['$set']['ownerAddress'] = record['tx_sender']
 
     await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
-
-    position_record = await get_teahouse_position_record(db, record, rpc_url)
-    missing_block, records_to_be_inserted = await process_position_for_lp_leaderboard_for_position_transformer(
-        db, record, position_record)
-    if not missing_block:
-        for pos_record in records_to_be_inserted:
-            await insert_lp_leaderboard_snapshot(pos_record['event_data'], db, position_record=pos_record['position_record'], teahouse=True)
 
     EventTracker.teahouse_remove_liquidity_count += 1
 
@@ -333,6 +341,10 @@ async def handle_teahouse_collect(*args, **kwargs):
     position_update_data['$inc']['collectedFeesToken1'] = Decimal128(collected_amount1)
 
     await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
+
+    position_record = await get_teahouse_position_record(db, record, rpc_url)
+    await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record=position_record, teahouse=True,
+                                                       amount0_fees=collected_amount0, amount1_fees=collected_amount1)
 
     EventTracker.teahouse_collect_count += 1
 

@@ -1,3 +1,4 @@
+from bson import Decimal128
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -36,9 +37,11 @@ async def get_pool_boost(token0_address: str, token1_address: str) -> Decimal:
         return Decimal(1)
 
 
-async def get_current_position_total_fees_usd(event_data: dict, position_record: dict, db: Database, rpc_url: str, 
-                                              get_uncollected_fees_func: callable) -> Decimal:
-    simulated_tx_fees_usd = 0
+async def get_current_position_total_fees_usd(event_data: dict, position_record: dict, snapshot_record: dict, db: Database, rpc_url: str, 
+                                              get_uncollected_fees_func: callable) -> tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
+    current_unclaimed_token0_fees = ZERO_DECIMAL
+    current_unclaimed_token1_fees = ZERO_DECIMAL
+
     hour_id, _ = await get_hour_id(event_data['timestamp'])
     token0_price = await get_token_price_by_hour_id(db, hour_id, position_record['token0Address'])
     token1_price = await get_token_price_by_hour_id(db, hour_id, position_record['token1Address'])
@@ -47,18 +50,16 @@ async def get_current_position_total_fees_usd(event_data: dict, position_record:
     if token0_fees or token1_fees:
         token0 = await get_token_record(db, position_record['token0Address'], rpc_url)
         token1 = await get_token_record(db, position_record['token1Address'], rpc_url)
-        token0_fees = await amount_after_decimals(token0_fees, token0.get('decimals', DEFAULT_DECIMALS))
-        token1_fees = await amount_after_decimals(token1_fees, token1.get('decimals', DEFAULT_DECIMALS))
+        current_unclaimed_token0_fees = await amount_after_decimals(token0_fees, token0.get('decimals', DEFAULT_DECIMALS))
+        current_unclaimed_token1_fees = await amount_after_decimals(token1_fees, token1.get('decimals', DEFAULT_DECIMALS))
 
-        token0_fees_usd = token0_fees * token0_price
-        token1_fees_usd = token1_fees * token1_price
-        simulated_tx_fees_usd = token0_fees_usd + token1_fees_usd
+    current_token0_fees = snapshot_record['collectedFeesToken0'].to_decimal() - position_record['lastUnclaimedFeesToken0'].to_decimal() + current_unclaimed_token0_fees
+    current_token0_fees_usd = current_token0_fees * token0_price
+    current_token1_fees = snapshot_record['collectedFeesToken1'].to_decimal() - position_record['lastUnclaimedFeesToken1'].to_decimal() + current_unclaimed_token1_fees
+    current_token1_fees_usd = current_token1_fees * token1_price
+    current_fees_usd = current_token0_fees_usd + current_token1_fees_usd
 
-    token0_fees_usd = position_record['collectedFeesToken0'].to_decimal() * token0_price
-    token1_fees_usd = position_record['collectedFeesToken1'].to_decimal() * token1_price
-    collected_fees_usd = token0_fees_usd + token1_fees_usd
-
-    return collected_fees_usd + simulated_tx_fees_usd
+    return current_fees_usd, current_unclaimed_token0_fees, current_unclaimed_token1_fees, token0_price, token1_price
 
 
 async def get_time_vested_value(record: dict, position_record_in_event: dict, latest_position_record: dict
@@ -163,6 +164,35 @@ async def get_token_price_by_hour_id(db: Database, hour_id: int, token_address: 
     return token_hour_data[0]['priceUSD'].to_decimal()
 
 
+async def insert_lp_snapshot_to_db(position_id: str, event_data: dict, db: Database, event: str | None = None, 
+                                   position_record: dict | None = None, amount0_fees: Decimal = ZERO_DECIMAL, 
+                                   amount1_fees: Decimal = ZERO_DECIMAL):
+    lp_leaderboard_snapshot_record = {
+        'positionId': position_id,
+        'position': position_record,
+        'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
+        'timestamp': event_data['timestamp'],
+        'block': event_data['block'],
+        'event': event,
+        'currentFeesUsd': ZERO_DECIMAL128,
+        'lpPoints': ZERO_DECIMAL128,
+        'lastTimeVestedValue': ZERO_DECIMAL128,
+        'currentTimeVestedValue': ZERO_DECIMAL128,
+        'period': 0,
+        'poolBoost': ZERO_DECIMAL128,
+        'processed': False,
+        'collectedFeesToken0': Decimal128(amount0_fees),
+        'collectedFeesToken1': Decimal128(amount1_fees),
+        'lastUnclaimedFeesToken0': ZERO_DECIMAL128,
+        'lastUnclaimedFeesToken1': ZERO_DECIMAL128,
+        'currentUnclaimedFeesToken0': ZERO_DECIMAL128,
+        'currentUnclaimedFeesToken1': ZERO_DECIMAL128,
+        'token0Price': ZERO_DECIMAL128,
+        'token1Price': ZERO_DECIMAL128,
+    }
+    db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
+
+
 async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: str | None = None, 
                                          position_record: dict | None = None, teahouse: bool = False):
     if not position_record:
@@ -180,22 +210,57 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
 
     record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
     if not record:
-        lp_leaderboard_snapshot_record = {
+        await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record)
+
+
+async def insert_lp_leaderboard_snapshot_collect_event(
+        event_data: dict, db: Database, event: str | None = None, position_record: dict | None = None, teahouse: bool = False,
+        amount0_fees: Decimal = ZERO_DECIMAL, amount1_fees: Decimal = ZERO_DECIMAL):
+    current_dt = convert_timestamp_to_datetime(event_data['timestamp'])
+    current_dt = current_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
+    current_dt = current_dt - timedelta(days=1)
+    timestamp1 = int(current_dt.timestamp() * 1000)
+
+    current_dt = convert_timestamp_to_datetime(event_data['timestamp'])
+    current_dt = current_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
+    timestamp2 = int(current_dt.timestamp() * 1000)
+
+    for timestamp in [timestamp1, timestamp2]:
+        event_data = event_data.copy()
+        event_data['timestamp'] = timestamp
+
+        position_id = position_record.get('positionId', '')
+        lp_snapshot_query = {
             'positionId': position_id,
-            'position': position_record,
-            'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
             'timestamp': event_data['timestamp'],
-            'block': event_data['block'],
-            'event': event,
-            'currentFeesUsd': ZERO_DECIMAL128,
-            'lpPoints': ZERO_DECIMAL128,
-            'lastTimeVestedValue': ZERO_DECIMAL128,
-            'currentTimeVestedValue': ZERO_DECIMAL128,
-            'period': 0,
-            'poolBoost': ZERO_DECIMAL128,
-            'processed': False,
         }
-        db[Collection.LP_LEADERBOARD_SNAPSHOT].insert_one(lp_leaderboard_snapshot_record)
+        if teahouse:
+            lp_snapshot_query['position.vaultAddress'] = position_record['vaultAddress']
+            lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
+            lp_snapshot_query['position.event'] = event
+
+        record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
+        if record:
+            db[Collection.LP_LEADERBOARD_SNAPSHOT].update_one(lp_snapshot_query, {
+                '$inc': {
+                    'collectedFeesToken0': Decimal128(amount0_fees),
+                    'collectedFeesToken1': Decimal128(amount1_fees),
+                }
+            })
+            return
+
+    # if the lp snapshot records doesn't exist for timestamps create only if position's liquidity > 0
+    if position_record.get('liquidity', 0) > ZERO_DECIMAL:
+        event_data = event_data.copy()
+        event_data['timestamp'] = timestamp2
+        await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record,
+                                       amount0_fees, amount1_fees)
+    else:
+        event_data = event_data.copy()
+        event_data['timestamp'] = timestamp1
+        await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record,
+                                       amount0_fees, amount1_fees)
+
 
 
 async def get_closest_block_from_timestamp(db: Database, target_timestamp: float) -> int | None:

@@ -24,6 +24,14 @@ class LpLeaderboardSnapshot:
     block: int
     event: str
     currentFeesUsd: Decimal
+    collectedFeesToken0: Decimal
+    collectedFeesToken1: Decimal
+    lastUnclaimedFeesToken0: Decimal
+    lastUnclaimedFeesToken1: Decimal
+    currentUnclaimedFeesToken0: Decimal
+    currentUnclaimedFeesToken1: Decimal
+    token0Price: Decimal
+    token1Price: Decimal
     lpPoints: Decimal
     processed: bool
     lastTimeVestedValue: Decimal
@@ -47,6 +55,14 @@ class LpLeaderboardSnapshot:
             block=data['block'],
             event=event,
             currentFeesUsd=data['currentFeesUsd'].to_decimal(),
+            collectedFeesToken0=data['collectedFeesToken0'].to_decimal(),
+            collectedFeesToken1=data['collectedFeesToken1'].to_decimal(),
+            lastUnclaimedFeesToken0=data['lastUnclaimedFeesToken0'].to_decimal(),
+            lastUnclaimedFeesToken1=data['lastUnclaimedFeesToken1'].to_decimal(),
+            currentUnclaimedFeesToken0=data['currentUnclaimedFeesToken0'].to_decimal(),
+            currentUnclaimedFeesToken1=data['currentUnclaimedFeesToken1'].to_decimal(),
+            token0Price=data['token0Price'].to_decimal(),
+            token1Price=data['token1Price'].to_decimal(),
             lpPoints=data['lpPoints'].to_decimal(),
             processed=data['processed'],
             lastTimeVestedValue=data['lastTimeVestedValue'].to_decimal(),

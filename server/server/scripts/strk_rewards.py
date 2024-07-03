@@ -84,9 +84,11 @@ async def strk_rewards_calculation(mongo_url: str, mongo_database: str):
 
         total_points_result = db[Collection.LP_LEADERBOARD_SNAPSHOT].aggregate(total_points_pipeline)
 
+        user_match_query = match_query.copy()
+        user_match_query['positionId'] = {'$ne': ''}
         user_points_pipeline = [
             {
-                '$match': match_query
+                '$match': user_match_query
             },
             {
                 '$group': {
@@ -108,9 +110,35 @@ async def strk_rewards_calculation(mongo_url: str, mongo_database: str):
                 }
             }
         ]
-
         user_points_result = db[Collection.LP_LEADERBOARD_SNAPSHOT].aggregate(user_points_pipeline)
 
+        user_vault_match_query = match_query.copy()
+        user_vault_match_query['positionId'] = ''
+        user_vault_points_pipeline = [
+            {
+                '$match': user_vault_match_query
+            },
+            {
+                '$group': {
+                    '_id': {
+                        'ownerAddress': '$position.vaultAddress',
+                        'token0Address': '$position.token0Address',
+                        'token1Address': '$position.token1Address'
+                    },
+                    'totalPoints': {'$sum': '$lpPoints'}
+                }
+            },
+            {
+                '$project': {
+                    '_id': 0,
+                    'userAddress': '$_id.ownerAddress',
+                    'token0Address': '$_id.token0Address',
+                    'token1Address': '$_id.token1Address',
+                    'totalPoints': '$totalPoints',
+                }
+            }
+        ]
+        user_vault_points_result = db[Collection.LP_LEADERBOARD_SNAPSHOT].aggregate(user_vault_points_pipeline)
         pairs_total_points = {
             (pair['token0Address'], pair['token1Address']): pair['totalPoints'].to_decimal()
             for pair in total_points_result
@@ -118,28 +146,29 @@ async def strk_rewards_calculation(mongo_url: str, mongo_database: str):
 
         total_user_allocations = defaultdict(int)
         pair_user_allocations = {}
-        for user_record in user_points_result:
-            user_pair_tokens = {user_record['token0Address'], user_record['token1Address']}
-            for pair_tokens, allocation_reward in TOKENS_TO_ALLOCATION_MAP.items():
-                if set(pair_tokens) == user_pair_tokens:
-                    pair_rewards = allocation_reward
-                    pair_total_points = pairs_total_points.get(
-                        (user_record['token0Address'], user_record['token1Address']),
-                        (user_record['token1Address'], user_record['token0Address'])
-                    )
-                    break
-            else:
-                continue
+        for result in [user_points_result, user_vault_points_result]:
+            for user_record in result:
+                user_pair_tokens = {user_record['token0Address'], user_record['token1Address']}
+                for pair_tokens, allocation_reward in TOKENS_TO_ALLOCATION_MAP.items():
+                    if set(pair_tokens) == user_pair_tokens:
+                        pair_rewards = allocation_reward
+                        pair_total_points = pairs_total_points.get(
+                            (user_record['token0Address'], user_record['token1Address']),
+                            (user_record['token1Address'], user_record['token0Address'])
+                        )
+                        break
+                else:
+                    continue
 
-            token_0_name = await get_obj_name(user_record['token0Address'])
-            token_1_name = await get_obj_name(user_record['token1Address'])
-            sorted_pair_tokens = '_'.join(sorted([token_0_name, token_1_name]))
-            if sorted_pair_tokens not in pair_user_allocations:
-                pair_user_allocations[sorted_pair_tokens] = defaultdict(int)
-            
-            amount = math.floor(user_record['totalPoints'].to_decimal() * pair_rewards / pair_total_points)
-            total_user_allocations[user_record['userAddress']] += amount
-            pair_user_allocations[sorted_pair_tokens][user_record['userAddress']] += amount
+                token_0_name = await get_obj_name(user_record['token0Address'])
+                token_1_name = await get_obj_name(user_record['token1Address'])
+                sorted_pair_tokens = '_'.join(sorted([token_0_name, token_1_name]))
+                if sorted_pair_tokens not in pair_user_allocations:
+                    pair_user_allocations[sorted_pair_tokens] = defaultdict(int)
+                
+                amount = math.floor(user_record['totalPoints'].to_decimal() * pair_rewards / pair_total_points)
+                total_user_allocations[user_record['userAddress']] += amount
+                pair_user_allocations[sorted_pair_tokens][user_record['userAddress']] += amount
 
         total_user_allocations_array = [
             {
