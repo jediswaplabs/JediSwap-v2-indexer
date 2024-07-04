@@ -141,7 +141,7 @@ async def yield_snapshot_records(db: Database, collection: str, match_query: dic
             }
         },
     ]
-    for record in db[collection].aggregate(pipeline):
+    for record in db[collection].aggregate(pipeline, maxTimeMS=3600000):
         yield record
 
 
