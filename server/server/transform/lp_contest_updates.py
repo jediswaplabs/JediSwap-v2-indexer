@@ -128,7 +128,12 @@ class CollectTx:
 
 async def simulate_collect_tx(rpc_url: str, position_record: dict, block_number: int) -> tuple[Decimal, Decimal]:
     rpc = FullNodeClient(node_url=rpc_url)
-    nonce = await rpc.get_contract_nonce(format_address(position_record['ownerAddress']), block_number=block_number)
+    try:
+        nonce = await rpc.get_contract_nonce(format_address(position_record['ownerAddress']), block_number=block_number)
+    except Exception:
+        logger.warning(f"Cannot get a nonce for position {position_record['positionId']}. Retrying...")
+        nonce = await rpc.get_contract_nonce(format_address(position_record['ownerAddress']), block_number=block_number)
+        logger.info('Sucessfully retrieved nonce')
 
     tx_errors = []
     for is_braavos_account in [False, True]:

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from bson import Decimal128
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient, UpdateOne, ASCENDING
 from pymongo.database import Database
 import pytz
 import schedule
@@ -125,26 +125,6 @@ class TeahousePosition(NftPosition):
             return ZERO_DECIMAL, ZERO_DECIMAL
 
 
-async def yield_snapshot_records(db: Database, collection: str, match_query: dict | None = None) -> dict:
-    if match_query is None:
-        match_query = {
-            'processed': False,
-        }
-
-    pipeline = [
-        {
-            '$match': match_query
-        },
-        {
-            '$sort': {
-                'timestamp': 1,
-            }
-        },
-    ]
-    for record in db[collection].aggregate(pipeline, maxTimeMS=3600000):
-        yield record
-
-
 async def yield_position_records(db: Database, collection: str) -> dict:
     query = {
         'liquidity': {'$ne': 0},
@@ -181,8 +161,8 @@ async def handle_positions_for_lp_leaderboard(db: Database, position_class: NftP
 
 async def calculate_lp_leaderboard_user_total_points(db: Database, rpc_url: str, position_class: NftPosition):
     processed_lp_records = 0
-
-    async for record in yield_snapshot_records(db, Collection.LP_LEADERBOARD_SNAPSHOT, position_class.lp_snapshot_query):
+    for record in db[Collection.LP_LEADERBOARD_SNAPSHOT].find(position_class.lp_snapshot_query, batch_size=10
+                                                              ).sort('timestamp', ASCENDING):
         position_record_in_event = record['position']
         latest_position_record = await position_class.get_latest_position(db=db, record=record, rpc_url=rpc_url)
 
@@ -283,7 +263,11 @@ async def calculate_volume_leaderboard_user_total_points(db: Database):
         last_index = int(len(results) * SWAP_PERCENTILE_TRESHOLD) - 1
         last_swap_event = results[last_index]
     
-    async for record in yield_snapshot_records(db, Collection.VOLUME_LEADERBOARD_SNAPSHOT):
+    match_query = {
+        'processed': False,
+    }
+    for record in db[Collection.VOLUME_LEADERBOARD_SNAPSHOT].find(match_query, batch_size=10
+                                                                  ).sort('timestamp', ASCENDING):
         fees_usd = record['swapFeesUsd'].to_decimal()
         sybil_multiplier = 1
         if last_swap_event and last_swap_event['swapFeesUsd'].to_decimal() > fees_usd:
