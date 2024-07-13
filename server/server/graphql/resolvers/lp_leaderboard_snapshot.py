@@ -41,7 +41,6 @@ class LpLeaderboardSnapshot:
 
     @classmethod
     def from_mongo(cls, data):
-        liquidity = data['liquidity'].to_decimal() if type(data['liquidity']) is Decimal128 else Decimal(data['liquidity'])
         event = data['event'] or ''
         calculation_at_dt = convert_timestamp_to_datetime(data['timestamp']).astimezone(pytz.utc)
         calculation_at = calculation_at_dt.strftime("%Y-%m-%d %H:%M:%S %Z %z")
@@ -50,7 +49,7 @@ class LpLeaderboardSnapshot:
             vaultAddress=data['position'].get('vaultAddress', ''),
             ownerAddress=data['position']['ownerAddress'],
             poolAddress=data['position'].get('poolAddress', ''),
-            liquidity=liquidity,
+            liquidity=data['liquidity'].to_decimal(),
             calculationAt=calculation_at,
             block=data['block'],
             event=event,

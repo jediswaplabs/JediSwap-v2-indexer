@@ -71,8 +71,8 @@ async def get_time_vested_value(record: dict, position_record_in_event: dict, la
     if record['event'] == Event.DECREASE_LIQUIDITY:
         current_time_vested_value = ZERO_DECIMAL
     elif record['event'] == Event.INCREASE_LIQUIDITY:
-        current_liquidity = Decimal(position_record_in_event['liquidity'])
-        new_liquidity = current_liquidity + Decimal(record['liquidity'])
+        current_liquidity = position_record_in_event['liquidity'].to_decimal()
+        new_liquidity = current_liquidity + record['liquidity'].to_decimal()
         if not current_liquidity:
             current_liquidity = new_liquidity
         current_time_vested_value = last_time_vested_value * Decimal(1) / (new_liquidity / current_liquidity)
@@ -175,7 +175,7 @@ async def insert_lp_snapshot_to_db(position_id: str, event_data: dict, db: Datab
     lp_leaderboard_snapshot_record = {
         'positionId': position_id,
         'position': position_record,
-        'liquidity': event_data.get('liquidity', ZERO_DECIMAL128),
+        'liquidity': Decimal128(event_data.get('liquidity', '0')),
         'timestamp': event_data['timestamp'],
         'block': event_data['block'],
         'event': event,
@@ -207,19 +207,43 @@ async def insert_lp_leaderboard_snapshot(event_data: dict, db: Database, event: 
     lp_snapshot_query = {
         'positionId': position_id,
         'timestamp': event_data['timestamp'],
+        'event': event,
     }
     if teahouse:
         lp_snapshot_query['position.vaultAddress'] = position_record['vaultAddress']
         lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
-        lp_snapshot_query['position.event'] = event
 
     record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
     if not record:
         await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record)
 
 
+async def update_lp_leaderboard_snapshot_decrease_liquidity_event(
+        event_data: dict, db: Database, position_record: dict | None = None, teahouse: bool = False,
+        amount0_fees: Decimal = ZERO_DECIMAL, amount1_fees: Decimal = ZERO_DECIMAL) -> bool:
+    lp_snapshot_query = {
+        'positionId': position_record.get('positionId', ''),
+        'block': event_data['block'],
+        'event': Event.DECREASE_LIQUIDITY,
+    }
+    if teahouse:
+        lp_snapshot_query['position.vaultAddress'] = position_record['vaultAddress']
+        lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
+
+    if record := db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query):
+        record_query = {'_id': record['_id']}
+        db[Collection.LP_LEADERBOARD_SNAPSHOT].update_one(record_query, {
+            '$inc': {
+                'collectedFeesToken0': Decimal128(amount0_fees),
+                'collectedFeesToken1': Decimal128(amount1_fees),
+            }
+        })
+        return True
+    return False
+        
+
 async def insert_lp_leaderboard_snapshot_collect_event(
-        event_data: dict, db: Database, event: str | None = None, position_record: dict | None = None, teahouse: bool = False,
+        event_data: dict, db: Database, position_record: dict | None = None, teahouse: bool = False,
         amount0_fees: Decimal = ZERO_DECIMAL, amount1_fees: Decimal = ZERO_DECIMAL):
     current_dt = convert_timestamp_to_datetime(event_data['timestamp'])
     current_dt = current_dt.replace(hour=23, minute=59, second=59, microsecond=0, tzinfo=timezone.utc)
@@ -242,11 +266,10 @@ async def insert_lp_leaderboard_snapshot_collect_event(
         if teahouse:
             lp_snapshot_query['position.vaultAddress'] = position_record['vaultAddress']
             lp_snapshot_query['position.poolAddress'] = position_record['poolAddress']
-            lp_snapshot_query['position.event'] = event
 
-        record = db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query)
-        if record:
-            db[Collection.LP_LEADERBOARD_SNAPSHOT].update_one(lp_snapshot_query, {
+        if record := db[Collection.LP_LEADERBOARD_SNAPSHOT].find_one(lp_snapshot_query):
+            record_query = {'_id': record['_id']}
+            db[Collection.LP_LEADERBOARD_SNAPSHOT].update_one(record_query, {
                 '$inc': {
                     'collectedFeesToken0': Decimal128(amount0_fees),
                     'collectedFeesToken1': Decimal128(amount1_fees),
@@ -254,17 +277,17 @@ async def insert_lp_leaderboard_snapshot_collect_event(
             })
             return
 
-    # if the lp snapshot records doesn't exist for timestamps create only if position's liquidity > 0
-    if position_record.get('liquidity', 0) > ZERO_DECIMAL:
+    # if the lp snapshot records doesn't exist for timestamps create it
+    if position_record.get('liquidity', ZERO_DECIMAL128).to_decimal() > ZERO_DECIMAL:
         event_data = event_data.copy()
         event_data['timestamp'] = timestamp2
-        await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record,
-                                       amount0_fees, amount1_fees)
+        await insert_lp_snapshot_to_db(position_id, event_data, db, position_record=position_record,
+                                       amount0_fees=amount0_fees, amount1_fees=amount1_fees)
     else:
         event_data = event_data.copy()
         event_data['timestamp'] = timestamp1
-        await insert_lp_snapshot_to_db(position_id, event_data, db, event, position_record,
-                                       amount0_fees, amount1_fees)
+        await insert_lp_snapshot_to_db(position_id, event_data, db, position_record=position_record,
+                                       amount0_fees=amount0_fees, amount1_fees=amount1_fees)
 
 
 

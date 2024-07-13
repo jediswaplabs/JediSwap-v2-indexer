@@ -127,7 +127,7 @@ class TeahousePosition(NftPosition):
 
 async def yield_position_records(db: Database, collection: str) -> dict:
     query = {
-        'liquidity': {'$ne': 0},
+        'liquidity': {'$ne': ZERO_DECIMAL128},
     }
     for record in db[collection].find(query):
         yield record

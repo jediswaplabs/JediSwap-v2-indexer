@@ -16,7 +16,7 @@ import {
   fetchAdditionalDetailsFromPosition,
 } from "../common/position_details.ts";
 import {
-  formatFelt, formatU256, senderAddress
+  formatFelt, formatU256, senderAddress, hexToString
 } from "../common/utils.ts";
   
 const filter = {
@@ -68,7 +68,7 @@ export default async function transform({ header, events }: Block) {
       case SELECTOR_KEYS.INCREASE_LIQUIDITY: {
         const positionId = formatU256(event.data[0], event.data[1]);
         const positionAddress = formatFelt(event.fromAddress);
-        const liquidity = Number(event.data[2]);
+        const liquidity = hexToString(event.data[2]);
         const amount0 = formatU256(event.data[3], event.data[4]);
         const amount1 = formatU256(event.data[5], event.data[6]);
         return {
@@ -84,7 +84,7 @@ export default async function transform({ header, events }: Block) {
       case SELECTOR_KEYS.DECREASE_LIQUIDITY: {
         const positionId = formatU256(event.data[0], event.data[1]);
         const positionAddress = formatFelt(event.fromAddress);
-        const liquidity = Number(event.data[2]);
+        const liquidity = hexToString(event.data[2]);
         const amount0 = formatU256(event.data[3], event.data[4]);
         const amount1 = formatU256(event.data[5], event.data[6]);
         return {

@@ -8,7 +8,8 @@ from server.const import Collection, Event, ZERO_ADDRESS, DEFAULT_DECIMALS, TIME
 from server.transform.lp_contest_updates import (
     insert_lp_leaderboard_snapshot, 
     process_position_for_lp_leaderboard_for_position_transformer, 
-    insert_lp_leaderboard_snapshot_collect_event
+    insert_lp_leaderboard_snapshot_collect_event,
+    update_lp_leaderboard_snapshot_decrease_liquidity_event,
 )
 from server.query_utils import get_token_record, get_position_record, get_teahouse_position_record
 from server.utils import amount_after_decimals
@@ -88,7 +89,7 @@ async def handle_increase_liquidity(*args, **kwargs):
 
     position_update_data = {
         '$inc': {
-            'liquidity': record['liquidity'],
+            'liquidity': Decimal128(record['liquidity']),
             'depositedToken0': Decimal128(amount0),
             'depositedToken1': Decimal128(amount1),
         }
@@ -124,7 +125,7 @@ async def handle_decrease_liquidity(*args, **kwargs):
 
     position_update_data = {
         '$inc': {
-            'liquidity': -record['liquidity'],
+            'liquidity': Decimal128(f"-{record['liquidity']}"),
             'withdrawnToken0': Decimal128(amount0),
             'withdrawnToken1': Decimal128(amount1),
         }
@@ -174,8 +175,10 @@ async def handle_collect(*args, **kwargs):
     await update_position_record(db, record['positionId'], position_update_data)
 
     position_record = await get_position_record(db, record['positionId'])
-    await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record=position_record,
-                                                       amount0_fees=amount0, amount1_fees=amount1)
+    if not await update_lp_leaderboard_snapshot_decrease_liquidity_event(record, db, position_record, 
+                                                                         amount0_fees=amount0, amount1_fees=amount1):
+        await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record,
+                                                           amount0_fees=amount0, amount1_fees=amount1)
 
     EventTracker.collect_count += 1
 
@@ -247,7 +250,7 @@ async def handle_teahouse_add_liquidity(*args, **kwargs):
 
     position_update_data = dict()
     position_update_data['$inc'] = dict()
-    position_update_data['$inc']['liquidity'] = record['liquidity']
+    position_update_data['$inc']['liquidity'] = Decimal128(record['liquidity'])
     position_update_data['$inc']['depositedToken0'] = Decimal128(amount0)
     position_update_data['$inc']['depositedToken1'] = Decimal128(amount1)
     position_update_data['$set'] = dict()
@@ -291,7 +294,7 @@ async def handle_teahouse_remove_liquidity(*args, **kwargs):
 
     position_update_data = dict()
     position_update_data['$inc'] = dict()
-    position_update_data['$inc']['liquidity'] = -record['liquidity']
+    position_update_data['$inc']['liquidity'] = Decimal128(f"-{record['liquidity']}")
     position_update_data['$inc']['withdrawnToken0'] = Decimal128(amount0)
     position_update_data['$inc']['withdrawnToken1'] = Decimal128(amount1)
     position_update_data['$set'] = dict()
@@ -343,8 +346,10 @@ async def handle_teahouse_collect(*args, **kwargs):
     await update_teahouse_position_record(db, record['poolAddress'], position_update_data)
 
     position_record = await get_teahouse_position_record(db, record, rpc_url)
-    await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record=position_record, teahouse=True,
-                                                       amount0_fees=collected_amount0, amount1_fees=collected_amount1)
+    if not await update_lp_leaderboard_snapshot_decrease_liquidity_event(record, db, position_record, True, 
+                                                                         collected_amount0, collected_amount1):
+        await insert_lp_leaderboard_snapshot_collect_event(record, db, position_record, True,
+                                                           collected_amount0, collected_amount1)
 
     EventTracker.teahouse_collect_count += 1
 

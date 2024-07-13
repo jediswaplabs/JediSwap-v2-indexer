@@ -13,7 +13,7 @@ import {
   EVENTS,
 } from "../common/constants.ts";
 import {
-  formatFelt, formatU256, senderAddress, formatI32
+  formatFelt, formatU256, senderAddress, formatI32, hexToString
 } from "../common/utils.ts";
 
 
@@ -57,7 +57,7 @@ export default async function transform({ header, events }: Block) {
         const poolAddress = formatFelt(event.keys[1]);
         const tickLower = formatI32(event.data[0], event.data[1])
         const tickUpper = formatI32(event.data[2], event.data[3])
-        const liquidity = Number(event.data[4]);
+        const liquidity = hexToString(event.data[4])
         const amount0 = formatU256(event.data[5], event.data[6]);
         const amount1 = formatU256(event.data[7], event.data[8]);
         return {
@@ -76,7 +76,7 @@ export default async function transform({ header, events }: Block) {
         const poolAddress = formatFelt(event.keys[1]);
         const tickLower = formatI32(event.data[0], event.data[1])
         const tickUpper = formatI32(event.data[2], event.data[3])
-        const liquidity = Number(event.data[4]);
+        const liquidity = hexToString(event.data[4])
         const amount0 = formatU256(event.data[5], event.data[6]);
         const amount1 = formatU256(event.data[7], event.data[8]);
         return {

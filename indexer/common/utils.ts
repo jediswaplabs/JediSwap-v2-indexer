@@ -8,12 +8,17 @@ export function formatBigIntToAddress(key: BigInt): string {
 }
 
 export function formatFelt(key: string): string {
-    return "0x" + BigInt(key).toString(16);
-  }
+  return "0x" + BigInt(key).toString(16);
+}
+
+export function hexToString(key: string): string {
+  return BigInt(key).toString()
+}
+  
 
 export function formatU256(low: string, high: string): Number {
-    return Number(uint256.uint256ToBN({ low: low, high: high }));
-  }
+  return Number(uint256.uint256ToBN({ low: low, high: high }));
+}
 
 export function formatI256(low: string, high: string, sign: string): Number {
     if(Number(sign) == 1) {
