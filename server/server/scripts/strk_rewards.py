@@ -6,7 +6,7 @@ from pathlib import Path
 
 from pymongo import MongoClient
 
-from server.const import Collection, ETH, USDC, USDT, WBTC, STRK
+from server.const import Collection, ETH, USDC, USDT, WBTC, STRK, DAI, WSTETH
 
 from structlog import get_logger
 
@@ -17,14 +17,16 @@ OUTPUT_DIR = Path('strk_rewards_data')
 USER_ALLOCATION_FILE = OUTPUT_DIR / 'user_allocations'
 USER_ALLOCATION_PAIR_FILE = OUTPUT_DIR / 'user_allocations_{}'
 
-ALLOCATION_START_TIMESTAMP = 1715105005000
-ALLOCATION_END_TIMESTAMP = 1735105005000
+ALLOCATION_START_TIMESTAMP = 1719446400001
+ALLOCATION_END_TIMESTAMP = 1720656000000
 TOKENS_TO_ALLOCATION_MAP = {
-    (USDC, ETH): 205399 * (10 ** 16),
-    (STRK, ETH): 176640 * (10 ** 16),
-    (STRK, USDC): 10267 * (10 ** 16),
-    (USDC, USDT): 10267 * (10 ** 16),
-    (WBTC, ETH): 10267 * (10 ** 16),
+    (USDC, ETH): 67870 * (10 ** 16),
+    (STRK, ETH): 147143 * (10 ** 16),
+    (STRK, USDC): 80168 * (10 ** 16),
+    (USDC, DAI): 39662 * (10 ** 16),
+    (USDC, USDT): 46251 * (10 ** 16),
+    (WBTC, ETH): 66627 * (10 ** 16),
+    (WSTETH, ETH): 581205 * (10 ** 16),
 }
 
 
@@ -53,7 +55,7 @@ async def strk_rewards_calculation(mongo_url: str, mongo_database: str):
         db = mongo[db_name]
 
         match_query = {
-            'lpPoints': {'$ne': 0},
+            'lpPoints': {'$gt': 0},
             'timestamp': {
                 '$lte': ALLOCATION_END_TIMESTAMP,
                 '$gte': ALLOCATION_START_TIMESTAMP,
