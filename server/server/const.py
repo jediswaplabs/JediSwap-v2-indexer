@@ -6,10 +6,13 @@ from server.utils import format_address
 
 
 class Collection:
+    BLOCKS = 'blocks'
     POOLS = 'pools'
     POOLS_DATA = 'pools_data'
     POSITIONS = 'positions'
-    POSITION_FEES = 'position_fees'
+    POSITIONS_DATA = 'positions_data'
+    TEAHOUSE_VAULT = 'teahouse_vault'
+    TEAHOUSE_VAULT_DATA = 'teahouse_vault_data'
     TOKENS = 'tokens'
     FACTORIES = 'factories'
     FACTORIES_DAY_DATA = 'factories_day_data'
@@ -18,6 +21,23 @@ class Collection:
     POOLS_HOUR_DATA = 'pools_hour_data'
     TOKENS_DAY_DATA = 'tokens_day_data'
     TOKENS_HOUR_DATA = 'tokens_hour_data'
+    LP_LEADERBOARD = 'lp_leaderboard'
+    LP_LEADERBOARD_SNAPSHOT = 'lp_leaderboard_snapshot'
+    VOLUME_LEADERBOARD = 'volume_leaderboard'
+    VOLUME_LEADERBOARD_SNAPSHOT = 'volume_leaderboard_snapshot'
+
+
+class Event:
+    TRANSFER = 'Transfer'
+    INCREASE_LIQUIDITY = 'IncreaseLiquidity'
+    DECREASE_LIQUIDITY = 'DecreaseLiquidity'
+    COLLECT = 'Collect'
+    INITIALIZE = 'Initialize'
+    MINT = 'Mint'
+    BURN = 'Burn'
+    SWAP = 'Swap'
+    ADD_LIQUIDITY = 'AddLiquidity'
+    REMOVE_LIQUIDITY = 'RemoveLiquidity'
 
 
 FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
@@ -27,15 +47,15 @@ FACTORY_ADDRESS = format_address(str(os.environ.get('FACTORY_CONTRACT')))
 if os.environ.get('NETWORK') == 'mainnet':
     ETH = '0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7'
     USDC = '0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8'
-    DAI = '0x05574eb6b8789a91466f902c380d978e472db68170ff82a5b650b95a58ddf4ad'
+    DAI = '0x5574eb6b8789a91466f902c380d978e472db68170ff82a5b650b95a58ddf4ad'
     USDT = '0x68f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8'
     WBTC = '0x3fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac'
     WSTETH = '0x42b8f0484674ca266ac5d08e4ac6a3fe65bd3129795def2dca5c34ecc5f96d2'
     LORDS = '0x124aeb495b947201f5fac96fd1138e326ad86195b98df6dec9009158a533b49'
     LUSD = '0x70a76fd48ca0ef910631754d77dd822147fe98a569b826ec85e3c33fde586ac'
-    STRK = '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
+    STRK = '0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d'
 
-    ETH_USDC_ADDRESS = '0x7015a6822f109a2e41d25dd6878fe161ae9bb13eeb87e62de42a3158a64db28'
+    ETH_USDC_ADDRESS = '0x3c4b9713e7d408681f8f541b999cfba9d0a85cd4152140e75d97353d5ecc8f0'
     STABLECOINS = [USDC, USDT, DAI, LUSD]
     WHITELISTED_TOKENS = [ETH, USDC, DAI, USDT, WBTC, WSTETH, LORDS, LUSD, STRK]
 else:
@@ -55,4 +75,5 @@ ZERO_DECIMAL128 = Decimal128(Decimal(0))
 ZERO_DECIMAL = Decimal(0)
 
 DEFAULT_DECIMALS = 18
+MAX_UINT128 = 2 ** 128 - 1
 TIME_INTERVAL = 60  # in seconds

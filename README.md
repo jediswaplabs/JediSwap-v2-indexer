@@ -32,41 +32,43 @@ docker compose up
 
 Adjust environment variables in `env-<network>` file
 
-#### Data transformer for pools
-
-1. Run the commnad to set up collections (tokens, factory) in DB
+#### Data transformer for events
 
 ```
-poetry run server init
-```
-
-2. Run the commnad to processed the indexer data
-
-```
-poetry run server process
+poetry run server events
 ```
 
 #### Data transformer for positions
-
-1. Run the commnad to set up collections (tokens, factory) in DB
-
-```
-poetry run server init
-```
-
-2. Run the commnad to processed the indexer data
 
 ```
 poetry run server positions
 ```
 
+#### Data transformer for lp leaderboard contest
+
+Should be run after processing all events and positions by transformers
+
+```
+poetry run server leaderboard
+```
+
 ### Server
 
-1. Start the server
+Start the server
 
 ```
 poetry run server graphql
 ```
+
+### STRK rewards calculation script
+
+Start the server
+
+```
+poetry run server strk-calculation
+```
+
+The output data is saved to `server/strk_rewards_data`
 
 ## Run all services via docker compose
 

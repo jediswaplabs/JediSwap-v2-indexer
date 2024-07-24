@@ -45,6 +45,7 @@ class WhereFilterForPoolData:
     pool_address_in: Optional[List[str]] = field(default_factory=list)
     both_token_address_in: Optional[List[str]] = field(default_factory=list)
 
+
 @strawberry.input
 class WhereFilterForTransaction:
     pool_address: Optional[str] = None
@@ -52,6 +53,18 @@ class WhereFilterForTransaction:
     both_token_address_in: Optional[List[str]] = field(default_factory=list)
     tx_type_in: Optional[List[str]] = field(default_factory=lambda: ['Swap', 'Burn', 'Mint'])
     tx_sender: Optional[str] = None
+
+
+@strawberry.input
+class WhereFilterForUser:
+    user_address: Optional[str] = None
+
+
+@strawberry.input
+class WhereFilterForNftPosition:
+    position_id: Optional[int] = None
+    owner_address: Optional[str] = None
+    pool_address: Optional[str] = None
 
 
 async def add_block_constraint(query: dict, block: Optional[BlockFilter]):
@@ -139,6 +152,10 @@ async def filter_by_days_data(query: dict, period: str):
     days = PERIODS_TO_DAYS_MAP.get(period)
     from_datestamp = datetime.now() - timedelta(days=days)
     query['periodStartUnix'] = {'$gt': from_datestamp}
+
+
+async def filter_by_user_address(where: WhereFilterForUser, query: dict):
+    query['userAddress'] = format_address(where.user_address)
 
 
 def convert_timestamp_to_datetime(timestamp: float):

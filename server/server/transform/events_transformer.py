@@ -8,7 +8,7 @@ from pymongo.database import Database
 from starknet_py.contract import Contract
 from starknet_py.net.full_node_client import FullNodeClient
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, TIME_INTERVAL
+from server.const import Collection, Event, FACTORY_ADDRESS, ZERO_DECIMAL128, TIME_INTERVAL
 from server.transform.interval_updates import (
     update_factory_day_data,
     update_factory_hour_data,
@@ -20,19 +20,13 @@ from server.transform.interval_updates import (
 from server.transform.pricing import EthPrice, find_eth_per_token, sqrt_price_x96_to_token_prices, get_tracked_amount_usd
 from server.query_utils import get_factory_record, get_pool_record, get_token_record, get_tokens_from_pool, filter_by_the_latest_value
 from server.utils import amount_after_decimals, convert_num_to_decimal128
+from server.transform.leaderboard_transformer import insert_volume_leaderboard_snapshot
 
 from pymongo import MongoClient, UpdateOne
 from structlog import get_logger
 
+
 logger = get_logger(__name__)
-
-
-class Event:
-    INITIALIZE = 'Initialize'
-    MINT = 'Mint'
-    BURN = 'Burn'
-    SWAP = 'Swap'
-    COLLECT = 'Collect'
 
 
 class EventTracker:
@@ -440,7 +434,9 @@ async def handle_swap(*args, **kwargs):
     await update_token_hour_data(db, token0, record['timestamp'], amount_total_USD_tracked, amount0_abs, fees_USD)
     await update_token_day_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
     await update_token_hour_data(db, token1, record['timestamp'], amount_total_USD_tracked, amount1_abs, fees_USD)
-    
+
+    await insert_volume_leaderboard_snapshot(db, fees_USD, record)
+
     EventTracker.swap_count += 1
 
 async def update_pool_fee_growth(*args, **kwargs):

@@ -1,7 +1,7 @@
 from pymongo.database import Database
-from typing import List, Optional
+from typing import List, Optional, Any
 
-from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128, ZERO_ADDRESS
+from server.const import Collection, FACTORY_ADDRESS, ZERO_DECIMAL128
 from server.utils import amount_after_decimals, get_hour_id
 
 from starknet_py.contract import ContractFunction
@@ -111,6 +111,62 @@ async def get_all_token_pools(db: Database, token_address: str) -> list[dict]:
     }
     return db[Collection.POOLS].find(query)
 
+async def get_position_record(db: Database, position_id: str) -> dict:
+    position_collection = db[Collection.POSITIONS]
+    position_record = db[Collection.POSITIONS].find_one({'positionId': position_id})
+    if position_record is None:
+        position_record = {
+            'positionId': position_id,
+            'poolFee': 0,
+            'tickLower': 0,
+            'tickUpper': 0,
+            'liquidity': ZERO_DECIMAL128,
+            'depositedToken0': ZERO_DECIMAL128,
+            'depositedToken1': ZERO_DECIMAL128,
+            'withdrawnToken0': ZERO_DECIMAL128,
+            'withdrawnToken1': ZERO_DECIMAL128,
+            'collectedFeesToken0': ZERO_DECIMAL128,
+            'collectedFeesToken1': ZERO_DECIMAL128,
+            'lastUnclaimedFeesToken0': ZERO_DECIMAL128,
+            'lastUnclaimedFeesToken1': ZERO_DECIMAL128,
+            'timeVestedValue': ZERO_DECIMAL128,
+            'lastUpdatedTimestamp': 0,
+            'lpPoints': ZERO_DECIMAL128,
+        }
+        position_collection.insert_one(position_record)
+    return position_record
+
+async def get_teahouse_position_record(db: Database, record: dict, rpc_url: str) -> dict:
+    position_record = db[Collection.TEAHOUSE_VAULT].find_one({
+        'poolAddress': record['poolAddress'],
+    })
+    if position_record is None:
+        pool = await get_pool_record(db, record['poolAddress'])
+        token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
+        position_record = {
+            'vaultAddress': record['vaultAddress'],
+            'poolAddress': record['poolAddress'],
+            # events contains tx_sender field but in DB we stored ownerAddress field
+            'ownerAddress': record.get('tx_sender') or record.get('ownerAddress'),
+            'tickLower': 0,
+            'tickUpper': 0,
+            'liquidity': ZERO_DECIMAL128,
+            'depositedToken0': ZERO_DECIMAL128,
+            'depositedToken1': ZERO_DECIMAL128,
+            'withdrawnToken0': ZERO_DECIMAL128,
+            'withdrawnToken1': ZERO_DECIMAL128,
+            'collectedFeesToken0': ZERO_DECIMAL128,
+            'collectedFeesToken1': ZERO_DECIMAL128,
+            'token0Address': token0['tokenAddress'],
+            'token1Address': token1['tokenAddress'],
+            'lastUnclaimedFeesToken0': ZERO_DECIMAL128,
+            'lastUnclaimedFeesToken1': ZERO_DECIMAL128,
+            'timeVestedValue': ZERO_DECIMAL128,
+            'lastUpdatedTimestamp': record['timestamp'],
+            'lpPoints': ZERO_DECIMAL128,
+        }
+        db[Collection.TEAHOUSE_VAULT].insert_one(position_record)
+    return position_record
 
 async def get_token_name(token_address: str, rpc_url: str) -> str:
     try:
@@ -142,12 +198,19 @@ async def get_token_decimals(token_address: str, rpc_url: str) -> int:
             return 0
     return result[0]
     
-async def simple_call(contract_address: str, method: str, calldata: List[int], rpc_url: str):
+async def simple_call(contract_address: str, method: str, calldata: List[int], rpc_url: str, block_number: int | str = 'latest'):
     rpc = FullNodeClient(node_url=rpc_url)
     selector = ContractFunction.get_selector(method)
     call = Call(int(contract_address, 16), selector, calldata)
     try:
-        return await rpc.call_contract(call)
+        return await rpc.call_contract(call, block_number=block_number)
     except Exception as e:
-        logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata)  
+        logger.info("rpc call did not succeed", error=str(e), contract_address=contract_address, method=method, calldata=calldata, 
+                    block_number=block_number)  
         raise
+
+async def simulate_tx(tx: Any, rpc_url: str, block_number: int):
+    rpc = FullNodeClient(node_url=rpc_url)
+    simulated_txs = await rpc.simulate_transactions(
+        transactions=[tx], skip_validate=True, skip_fee_charge=True, block_number=block_number)
+    return simulated_txs[0].transaction_trace.execute_invocation.result
