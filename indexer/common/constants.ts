@@ -11,6 +11,7 @@ export const COLLECTION_NAMES = {
   POOLS_DATA: 'pools_data',
   POSITIONS_DATA: 'positions_data',
   TEAHOUSE_VAULT_DATA: 'teahouse_vault_data',
+  REFERRAL_DATA: 'referral_data',
 }
 
 export const EVENTS = {
@@ -26,6 +27,7 @@ export const EVENTS = {
   SWAP: 'Swap',
   ADD_LIQUIDITY: 'AddLiquidity',
   REMOVE_LIQUIDITY: 'RemoveLiquidity',
+  SET_REFERRER: 'SetReferrer',
 }
 
 export const SELECTOR_KEYS = {
@@ -41,6 +43,7 @@ export const SELECTOR_KEYS = {
   SWAP: formatSelectorKey(EVENTS.SWAP),
   ADD_LIQUIDITY: formatSelectorKey(EVENTS.ADD_LIQUIDITY),
   REMOVE_LIQUIDITY: formatSelectorKey(EVENTS.REMOVE_LIQUIDITY),
+  SET_REFERRER: formatSelectorKey(EVENTS.SET_REFERRER),
 };
 
 export const FACTORY_CONTRACT = Deno.env.get(
@@ -54,6 +57,9 @@ const TEAHOUSE_VAULT_CONTRACTS_STRING = Deno.env.get(
   "TEAHOUSE_VAULT_CONTRACT"
 ) as string;
 export const TEAHOUSE_VAULT_CONTRACTS = TEAHOUSE_VAULT_CONTRACTS_STRING.split(",");
+export const REFERRAL_CONTRACT = Deno.env.get(
+  "REFERRAL_CONTRACT"
+) as string;
 export const INDEX_FROM_BLOCK = Number(Deno.env.get(
   "INDEX_FROM_BLOCK"))
 export const STREAM_URL = Deno.env.get(
