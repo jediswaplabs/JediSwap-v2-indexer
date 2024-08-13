@@ -51,7 +51,7 @@ async def find_eth_per_token(db: Database, token_addr: str, rpc_url: str) -> Dec
     else:
         for pool in await get_all_token_pools(db, token_addr):
             pool = await get_pool_record(db, pool['poolAddress'])
-            if pool.get('liquidity'):
+            if pool.get('liquidity') and pool.get('liquidity').to_decimal() > 0:
                 token0, token1 = await get_tokens_from_pool(db, pool, rpc_url)
                 if pool['token0'] == token_addr:
                     if price_so_far == ZERO_DECIMAL:
